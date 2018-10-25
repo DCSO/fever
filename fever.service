@@ -1,0 +1,14 @@
+[Unit]
+Description=fast, extensible, versatile event router
+Documentation=https://github.com/DCSO/fever
+After=network.target
+
+[Service]
+SyslogIdentifier=fever
+EnvironmentFile=-/etc/default/fever
+ExecStart=/usr/bin/fever run $FEVER_ARGS
+ExecStop=/usr/bin/pkill fever
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

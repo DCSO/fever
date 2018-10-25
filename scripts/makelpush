@@ -1,0 +1,8 @@
+#!/usr/bin/env lua
+
+for line in io.lines() do
+  io.stdout:write("LPUSH suricata \"")
+  escapedstr = string.gsub(line, "\"", "\\\"")
+  io.stdout:write(escapedstr)
+  io.stdout:write("\"\r\n")
+end

@@ -1,0 +1,93 @@
+# Config file for FEVER
+# ---------------------
+
+# Output additional debug information.
+#  verbose: true
+# Enable output of profiling information to specified file.
+#  profile: profile.out
+# Use the given size for defining the size of data blocks to be handled at once.
+#  chunksize: 50000
+# Do not submit data to the sinks, only print on stdout.
+#  dummy: true
+# Retry connection to sockets or servers for at most the given amount of times before 
+# giving up. Use the value of 0 to never give up.
+#  reconnect-retries: 5
+# Specify time interval or number of items to cache before flushing to 
+# database, whichever happens first.
+#  flushtime: 1m
+#  flushcount: 100000
+
+# Configuration for PostgreSQL 9.5+ database connection.
+database:
+  enable: false
+  host: localhost
+  user: user
+  password: pass
+  database: test
+  # Set to true to use the MongoDB interface instead of PostgreSQL.
+  mongo: false
+  # Time interval after which a new table is created and background 
+  # indexing is started.
+  rotate: 1h
+  # Maximum size in gigabytes.
+  maxtablesize: 50
+
+# Configuration for input (from Suricata side). Only one of 'socket' 
+# or 'redis' is supported at the same time, comment/uncomment to choose.
+# The 'nopipe' option disables Redis pipelining. For Redis, we assume the
+# 'suricata' list as a source.
+input:
+  socket: /tmp/suri.sock
+  #redis:
+  #  server: localhost
+  #  nopipe: true
+
+# Definition what event types to forward. Set 'all' to true to forward 
+# everything received from Suricata, otherwise use the 'types' list to choose.
+# By default, we only forward alerts and stats events.
+forward:
+  all: false
+  types: 
+    - alert
+    - stats
+
+# Configuration for output of forwarded events (socket to e.g. Logstash).
+output:
+  socket: /tmp/suri-forward.sock
+
+# Configuration for flow report submission.
+flowreport:
+  # Interval used for aggregation.
+  interval: 60s
+  submission-url: amqp://guest:guest@localhost:5672/
+  exchange: aggregations
+  # Set to true to disable gzip compression for uploads.
+  nocompress: false
+
+# Configuration for metrics (i.e. InfluxDB) submission.
+metrics:
+  enable: true
+  submission-url: amqp://guest:guest@localhost:5672/
+  exchange: metrics
+
+# Configuration for passive DNS submission.
+pdns:
+  enable: true
+  submission-url: amqp://guest:guest@localhost:5672/
+  exchange: pdns
+
+# Configuration for detailed flow metadata submission.
+flowextract:
+  enable: false
+  submission-url: amqp://guest:guest@localhost:5672/
+  exchange: aggregations
+  # Uncomment to enable flow collection only for IPs in the given 
+  # Bloom filter.
+  #  bloom-selector: /tmp/flows.bloom
+
+# Configuration for Bloom filter alerting on HTTP, DNS and 
+# TLS metadata events.
+#bloom:
+#  file: ./in.bloom.gz
+#  zipped: true
+

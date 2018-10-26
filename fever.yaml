@@ -60,7 +60,7 @@ flowreport:
   # Interval used for aggregation.
   interval: 60s
   submission-url: amqp://guest:guest@localhost:5672/
-  exchange: aggregations
+  submission-exchange: aggregations
   # Set to true to disable gzip compression for uploads.
   nocompress: false
 
@@ -68,19 +68,19 @@ flowreport:
 metrics:
   enable: true
   submission-url: amqp://guest:guest@localhost:5672/
-  exchange: metrics
+  submission-exchange: metrics
 
 # Configuration for passive DNS submission.
 pdns:
   enable: true
   submission-url: amqp://guest:guest@localhost:5672/
-  exchange: pdns
+  submission-exchange: pdns
 
 # Configuration for detailed flow metadata submission.
 flowextract:
   enable: false
   submission-url: amqp://guest:guest@localhost:5672/
-  exchange: aggregations
+  submission-exchange: aggregations
   # Uncomment to enable flow collection only for IPs in the given 
   # Bloom filter.
   #  bloom-selector: /tmp/flows.bloom

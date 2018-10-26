@@ -246,7 +246,7 @@ func MakeRedisInput(addr string, outChan chan types.Entry, batchSize int) (*Redi
 				if err != nil {
 					return nil, err
 				}
-				log.Info("Dialing %s... %b", addr, err != nil)
+				log.Infof("Dialing %s... result: %v", addr, err == nil)
 				return c, err
 			},
 			TestOnBorrow: func(c redis.Conn, t time.Time) error {
@@ -255,7 +255,6 @@ func MakeRedisInput(addr string, outChan chan types.Entry, batchSize int) (*Redi
 			},
 		},
 	}
-	log.Debug("created pool ", ri.Pool)
 	return ri, err
 }
 
@@ -279,7 +278,7 @@ func MakeRedisInputSocket(addr string, outChan chan types.Entry, batchSize int) 
 				if err != nil {
 					return nil, err
 				}
-				log.Info("Dialing %s... %v", addr, err == nil)
+				log.Infof("Dialing %s... result: %v", addr, err == nil)
 				return c, err
 			},
 			TestOnBorrow: func(c redis.Conn, t time.Time) error {
@@ -291,7 +290,6 @@ func MakeRedisInputSocket(addr string, outChan chan types.Entry, batchSize int) 
 			},
 		},
 	}
-	log.Debug("created pool ", ri.Pool)
 	return ri, err
 }
 

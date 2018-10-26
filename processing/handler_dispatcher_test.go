@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
-	"sync"
 	"testing"
 	"time"
 
@@ -172,12 +171,9 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 
 	// set up consumer
 	results := make([]string, 0)
-	var resultsLock sync.Mutex
 	c, err := util.NewConsumer(serverURL, "nsm.test.metrics", "direct", "nsm.test.metrics.testqueue",
 		"", "", func(d wabbit.Delivery) {
-			resultsLock.Lock()
 			results = append(results, string(d.Body()))
-			resultsLock.Unlock()
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -233,12 +229,10 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 
 	c.Shutdown()
 
-	resultsLock.Lock()
 	if len(results) == 0 {
 		t.Fatalf("unexpected result length: %d == 0", len(results))
 	}
 	if match, _ := regexp.Match("^fever,[^ ]+ dispatch_calls_per_sec=[0-2]", []byte(results[0])); !match {
 		t.Fatalf("unexpected match content: %s", results[0])
 	}
-	resultsLock.Unlock()
 }

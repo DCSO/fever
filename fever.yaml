@@ -91,3 +91,8 @@ flowextract:
 #  file: ./in.bloom.gz
 #  zipped: true
 
+logging:
+  # Insert file name here to redirect logs to separate file.
+  file: 
+  # Set to true to enable JSON output.
+  json: false

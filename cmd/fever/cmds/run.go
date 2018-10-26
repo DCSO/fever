@@ -42,7 +42,7 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	logfilename := viper.GetString("logging.file")
 	if len(logfilename) > 0 {
 		log.Println("Switching to log file", logfilename)
-		file, err := os.Open(logfilename)
+		file, err := os.OpenFile(logfilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
 		if err != nil {
 			log.Fatal(err)
 		}

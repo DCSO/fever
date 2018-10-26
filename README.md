@@ -138,3 +138,11 @@ To feed EVE data into FEVER using Redis (started with `-r`), you can simply LPUS
 ```
 $ head -n 100000 huge.eve.json | scripts/makelpush | redis-cli > /dev/null
 ```
+
+## Author/Contact
+
+Sascha Steinbiss
+
+## License
+
+BSD-3-clause

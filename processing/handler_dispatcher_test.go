@@ -182,7 +182,6 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Shutdown()
 
 	// set up submitter
 	statssubmitter, err := util.MakeAMQPSubmitterWithReconnector(serverURL,
@@ -231,6 +230,8 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	stopChan := make(chan bool)
 	ad.Stop(stopChan)
 	<-stopChan
+
+	c.Shutdown()
 
 	resultsLock.Lock()
 	if len(results) == 0 {

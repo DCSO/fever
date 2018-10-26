@@ -5,6 +5,7 @@ package util
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"time"
 
@@ -57,7 +58,7 @@ func (a *PerformanceStatsEncoder) Submit(val interface{}) {
 			a.Logger.WithFields(log.Fields{}).Warn(err)
 		}
 	}
-	line := a.Buffer.String()
+	line := strings.TrimSpace(a.Buffer.String())
 	if line == "" {
 		a.Logger.WithFields(log.Fields{}).Warn("skipping empty influx line")
 		a.Unlock()

@@ -77,7 +77,13 @@ It is also possible to use a config file in YAML format ([Example](fever.yaml)).
 
 ## Running tests
 
-Unit tests are run via Go's generic testing framework:
+The test suite requires a Redis executable in the current path. Most simply, this requirement can be satisfied by just installing Redis. For instance, via `apt`:
+
+```
+$ apt install redis-server
+```
+
+Then the test suite can be run via Go's generic testing framework:
 
 ```
 $ go test -v -race -cover ./...

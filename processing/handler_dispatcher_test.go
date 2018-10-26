@@ -236,7 +236,7 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	if len(results) == 0 {
 		t.Fatalf("unexpected result length: %d == 0", len(results))
 	}
-	if match, _ := regexp.Match("^fever,[^ ]+ dispatch_calls_per_sec=[0-2]", []byte(results[0])); !match {
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ dispatch_calls_per_sec=[0-2]", util.ToolName), []byte(results[0])); !match {
 		t.Fatalf("unexpected match content: %s", results[0])
 	}
 	resultsLock.Unlock()

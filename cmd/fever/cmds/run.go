@@ -39,6 +39,8 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 	eventChan := make(chan types.Entry, defaultQueueSize)
 
+	util.ToolName = viper.GetString("toolname")
+
 	logfilename := viper.GetString("logging.file")
 	if len(logfilename) > 0 {
 		log.Println("Switching to log file", logfilename)
@@ -474,6 +476,8 @@ func init() {
 	viper.BindPFlag("flushtime", runCmd.PersistentFlags().Lookup("flushtime"))
 	runCmd.PersistentFlags().UintP("flushcount", "", 100000, "maximum number of events in one batch (e.g. for flow extraction)")
 	viper.BindPFlag("flushcount", runCmd.PersistentFlags().Lookup("flushcount"))
+	runCmd.PersistentFlags().StringP("toolname", "", "fever", "set toolname")
+	viper.BindPFlag("toolname", runCmd.PersistentFlags().Lookup("toolname"))
 
 	// Database options
 	runCmd.PersistentFlags().BoolP("db-enable", "", false, "write events to database")

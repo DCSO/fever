@@ -51,9 +51,9 @@ func makeFlowExtractorEvent(ipv6 bool) types.Entry {
 	return e
 }
 
-func makeBloomFilter(n int) *bloom.BloomFilter {
-	bf := bloom.Initialize(uint32(n), 1e-10)
-	for i := 0; i < n; i++ {
+func makeBloomFilter() *bloom.BloomFilter {
+	bf := bloom.Initialize(10000, 1e-10)
+	for i := 0; i < 10000; i++ {
 		bf.Add([]byte(fmt.Sprintf("10.0.0.%d", rand.Intn(50))))
 	}
 	bf.Add([]byte("2001:0db8:85a3:0000:0000:8a2e:0370:7334"))
@@ -98,7 +98,7 @@ func TestFlowExtractor(t *testing.T) {
 
 	mla, err := MakeFlowExtractor(2*time.Second, 100, "", submitter)
 
-	mla.BloomFilter = makeBloomFilter(nEvents)
+	mla.BloomFilter = makeBloomFilter()
 
 	if err != nil {
 		t.Fatal(err)

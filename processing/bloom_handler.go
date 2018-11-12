@@ -19,10 +19,10 @@ import (
 )
 
 var sigs = map[string]string{
-	"http-url":  "DCSO TIE-BLF Possibly bad HTTP URL: ",
-	"http-host": "DCSO TIE-BLF Possibly bad HTTP host: ",
-	"tls-sni":   "DCSO TIE-BLF Possibly bad TLS SNI: ",
-	"dns":       "DCSO TIE-BLF Possibly bad DNS lookup to ",
+	"http-url":  "BLF Possibly bad HTTP URL: ",
+	"http-host": "BLF Possibly bad HTTP host: ",
+	"tls-sni":   "BLF Possibly bad TLS SNI: ",
+	"dns":       "BLF Possibly bad DNS lookup to ",
 }
 
 // MakeAlertEntryForHit returns an alert Entry as raised by an external
@@ -46,7 +46,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string) types.Entry {
 		} else if eType == "tls-sni" {
 			value = e.TLSSni
 		}
-		var sig = "DCSO TIE-BLF Possibly bad traffic "
+		var sig = "BLF Possibly bad traffic "
 		if v, ok := sigs[eType]; ok {
 			sig = v
 		}

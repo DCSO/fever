@@ -5,7 +5,6 @@ package processing
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -138,9 +137,12 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 	iocBloom, err := bloom.LoadFilter(bloomFilename, compressed)
 	if err != nil {
 		if err == io.EOF {
-			return nil, errors.New("file is empty")
+			log.Warnf("file is empty, using empty default one")
+			myBloom := bloom.Initialize(100, 0.00000001)
+			iocBloom = &myBloom
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 	bh := MakeBloomHandler(iocBloom, databaseChan, forwardHandler)
 	bh.BloomFilename = bloomFilename

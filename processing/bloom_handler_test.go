@@ -441,13 +441,11 @@ func TestBloomHandlerEmptyInput(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	_, err = MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil)
-	if err == nil {
-		t.Fatal("error expected")
+	bf, err := MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err.Error() != "file is empty" {
-		t.Fatalf("wrong error message: %s (expected \"file is empty\")",
-			err.Error())
+	if bf == nil {
+		t.Fatal("bloom filter should not be nil for empty file")
 	}
-
 }

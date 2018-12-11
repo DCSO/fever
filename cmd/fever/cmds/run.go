@@ -188,10 +188,11 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 	// Bloom filter setup
 	bloomFilePath := viper.GetString("bloom.file")
+	bloomAlertPrefix := viper.GetString("bloom.alert-prefix")
 	bloomCompressed := viper.GetBool("bloom.zipped")
 	var bloomHandler *processing.BloomHandler
 	if bloomFilePath != "" {
-		bloomHandler, err = processing.MakeBloomHandlerFromFile(bloomFilePath, bloomCompressed, eventChan, forwardHandler)
+		bloomHandler, err = processing.MakeBloomHandlerFromFile(bloomFilePath, bloomCompressed, eventChan, forwardHandler, bloomAlertPrefix)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -528,6 +529,8 @@ func init() {
 	viper.BindPFlag("bloom.file", runCmd.PersistentFlags().Lookup("bloom-file"))
 	runCmd.PersistentFlags().BoolP("bloom-zipped", "z", false, "use gzipped Bloom filter file")
 	viper.BindPFlag("bloom.zipped", runCmd.PersistentFlags().Lookup("bloom-zipped"))
+	runCmd.PersistentFlags().StringP("bloom-alert-prefix", "", "BLF", "String prefix for Bloom filter alerts")
+	viper.BindPFlag("bloom.alert-prefix", runCmd.PersistentFlags().Lookup("bloom-alert-prefix"))
 
 	// Flow extraction options
 	runCmd.PersistentFlags().BoolP("flowextract-enable", "", false, "extract and forward flow metadata")

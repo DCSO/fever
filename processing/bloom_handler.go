@@ -18,17 +18,17 @@ import (
 )
 
 var sigs = map[string]string{
-	"http-url":  "BLF Possibly bad HTTP URL: ",
-	"http-host": "BLF Possibly bad HTTP host: ",
-	"tls-sni":   "BLF Possibly bad TLS SNI: ",
-	"dns":       "BLF Possibly bad DNS lookup to ",
+	"http-url":  "%s Possibly bad HTTP URL: ",
+	"http-host": "%s Possibly bad HTTP host: ",
+	"tls-sni":   "%s Possibly bad TLS SNI: ",
+	"dns":       "%s Possibly bad DNS lookup to ",
 }
 
 // MakeAlertEntryForHit returns an alert Entry as raised by an external
 // indicator match, e.g. a Bloom filter hit. The resulting alert will retain
 // the triggering event's metadata (e.g. 'dns' or 'http' objects) as well as
 // its timestamp.
-func MakeAlertEntryForHit(e types.Entry, eType string) types.Entry {
+func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string) types.Entry {
 	var eve types.EveEvent
 	var newEve types.EveEvent
 	var err = json.Unmarshal([]byte(e.JSONLine), &eve)
@@ -45,7 +45,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string) types.Entry {
 		} else if eType == "tls-sni" {
 			value = e.TLSSni
 		}
-		var sig = "BLF Possibly bad traffic "
+		var sig = "%s Possibly bad traffic: "
 		if v, ok := sigs[eType]; ok {
 			sig = v
 		}
@@ -54,7 +54,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string) types.Entry {
 			Alert: &types.AlertEvent{
 				Action:    "allowed",
 				Category:  "Potentially Bad Traffic",
-				Signature: sig + value,
+				Signature: fmt.Sprintf(sig, alertPrefix) + value,
 			},
 			Stream:     eve.Stream,
 			InIface:    eve.InIface,
@@ -96,6 +96,7 @@ type BloomHandler struct {
 	DatabaseEventChan     chan types.Entry
 	ForwardHandler        Handler
 	DoForwardAlert        bool
+	AlertPrefix           string
 }
 
 // BloomNoFileErr is an error thrown when a file-based operation (e.g.
@@ -114,7 +115,7 @@ func (e *BloomNoFileErr) Error() string {
 // Bloom filter and sending alerts to databaseChan as well as forwarding them
 // to a given forwarding handler.
 func MakeBloomHandler(iocBloom *bloom.BloomFilter,
-	databaseChan chan types.Entry, forwardHandler Handler) *BloomHandler {
+	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string) *BloomHandler {
 	bh := &BloomHandler{
 		Logger: log.WithFields(log.Fields{
 			"domain": "bloom",
@@ -123,6 +124,7 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 		DatabaseEventChan: databaseChan,
 		ForwardHandler:    forwardHandler,
 		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
+		AlertPrefix:       alertPrefix,
 	}
 	log.WithFields(log.Fields{
 		"N": iocBloom.N,
@@ -133,7 +135,7 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 // MakeBloomHandlerFromFile returns a new BloomHandler created from a new
 // Bloom filter specified by the given file name.
 func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
-	databaseChan chan types.Entry, forwardHandler Handler) (*BloomHandler, error) {
+	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string) (*BloomHandler, error) {
 	iocBloom, err := bloom.LoadFilter(bloomFilename, compressed)
 	if err != nil {
 		if err == io.EOF {
@@ -144,7 +146,7 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 			return nil, err
 		}
 	}
-	bh := MakeBloomHandler(iocBloom, databaseChan, forwardHandler)
+	bh := MakeBloomHandler(iocBloom, databaseChan, forwardHandler, alertPrefix)
 	bh.BloomFilename = bloomFilename
 	bh.BloomFileIsCompressed = compressed
 	return bh, nil
@@ -179,12 +181,12 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 			checkStr = "http://" + e.HTTPHost + e.HTTPUrl
 		}
 		if a.IocBloom.Check([]byte(checkStr)) {
-			n := MakeAlertEntryForHit(*e, "http-url")
+			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
 		if a.IocBloom.Check([]byte(e.HTTPHost)) {
-			n := MakeAlertEntryForHit(*e, "http-host")
+			n := MakeAlertEntryForHit(*e, "http-host", a.AlertPrefix)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
@@ -193,7 +195,7 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 	if e.EventType == "dns" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.DNSRRName)) {
-			n := MakeAlertEntryForHit(*e, "dns")
+			n := MakeAlertEntryForHit(*e, "dns", a.AlertPrefix)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
@@ -202,7 +204,7 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 	if e.EventType == "tls" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.TLSSni)) {
-			n := MakeAlertEntryForHit(*e, "tls-sni")
+			n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}

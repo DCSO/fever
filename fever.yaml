@@ -90,6 +90,7 @@ flowextract:
 #bloom:
 #  file: ./in.bloom.gz
 #  zipped: true
+#  alert-prefix: BLF
 
 logging:
   # Insert file name here to redirect logs to separate file.

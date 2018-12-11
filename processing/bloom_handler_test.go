@@ -237,7 +237,7 @@ func TestBloomHandler(t *testing.T) {
 		close(consumeWaitChan)
 	}()
 
-	bh := MakeBloomHandler(&bf, dbChan, fwhandler)
+	bh := MakeBloomHandler(&bf, dbChan, fwhandler, "FOO BAR")
 
 	err := bh.Reload()
 	if err == nil {
@@ -372,7 +372,7 @@ func TestBloomHandlerFromFile(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	bh, err := MakeBloomHandlerFromFile(b1File.Name(), false, dbChan, fwhandler)
+	bh, err := MakeBloomHandlerFromFile(b1File.Name(), false, dbChan, fwhandler, "FOO BAR")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func TestBloomHandlerEmptyInput(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	bf, err := MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil)
+	bf, err := MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil, "FOO BAR")
 	if err != nil {
 		t.Fatal(err)
 	}

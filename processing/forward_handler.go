@@ -37,6 +37,8 @@ type ForwardHandler struct {
 	StatsEncoder        *util.PerformanceStatsEncoder
 	StopChan            chan bool
 	StoppedChan         chan bool
+	StopCounterChan     chan bool
+	StoppedCounterChan  chan bool
 	Running             bool
 	Lock                sync.Mutex
 }
@@ -136,21 +138,23 @@ func (fh *ForwardHandler) runForward() {
 }
 
 func (fh *ForwardHandler) runCounter() {
-	var nofSecs uint64 = 10
+	sTime := time.Now()
 	for {
+		time.Sleep(500 * time.Millisecond)
 		select {
-		case <-fh.StopChan:
+		case <-fh.StopCounterChan:
+			close(fh.StoppedCounterChan)
 			return
 		default:
-			time.Sleep(time.Duration(nofSecs) * time.Second)
-			fh.Lock.Lock()
-			if fh.StatsEncoder != nil {
-				fh.PerfStats.ForwardedPerSec /= nofSecs
-				fh.StatsEncoder.Submit(fh.PerfStats)
+			if fh.StatsEncoder == nil || time.Since(sTime) < fh.StatsEncoder.SubmitPeriod {
+				continue
 			}
+			fh.Lock.Lock()
+			fh.PerfStats.ForwardedPerSec /= uint64(fh.StatsEncoder.SubmitPeriod.Seconds())
+			fh.StatsEncoder.Submit(fh.PerfStats)
 			fh.PerfStats.ForwardedPerSec = 0
+			sTime = time.Now()
 			fh.Lock.Unlock()
-
 		}
 	}
 }
@@ -202,6 +206,8 @@ func (fh *ForwardHandler) Run() {
 	if !fh.Running {
 		fh.StopChan = make(chan bool)
 		fh.ForwardEventChan = make(chan []byte, 10000)
+		fh.StopCounterChan = make(chan bool)
+		fh.StoppedCounterChan = make(chan bool)
 		go fh.reconnectForward()
 		fh.ReconnectNotifyChan <- true
 		go fh.runForward()
@@ -213,6 +219,8 @@ func (fh *ForwardHandler) Run() {
 // Stop stops forwarding of JSON representations of all consumed events
 func (fh *ForwardHandler) Stop(stoppedChan chan bool) {
 	if fh.Running {
+		close(fh.StopCounterChan)
+		<-fh.StoppedCounterChan
 		fh.StoppedChan = stoppedChan
 		fh.Lock.Lock()
 		fh.OutputConn.Close()

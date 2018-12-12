@@ -12,6 +12,7 @@ import (
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/NeowayLabs/wabbit"
 	"github.com/NeowayLabs/wabbit/amqptest"
@@ -173,6 +174,7 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	results := make([]string, 0)
 	c, err := util.NewConsumer(serverURL, "nsm.test.metrics", "direct", "nsm.test.metrics.testqueue",
 		"", "", func(d wabbit.Delivery) {
+			log.Info(string(d.Body()))
 			results = append(results, string(d.Body()))
 		})
 	if err != nil {
@@ -200,28 +202,36 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	ad := MakeHandlerDispatcher(outChan)
 	ad.SubmitStats(pse)
 	ad.Run()
-	time.Sleep(5 * time.Second)
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			ad.Dispatch(&types.Entry{
+				JSONLine: "foo",
+			})
+			ad.Dispatch(&types.Entry{
+				JSONLine: "bar",
+			})
+			ad.Dispatch(&types.Entry{
+				JSONLine: "baz",
+			})
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
 
 	go func(closeChan chan bool, inChan chan types.Entry) {
+		i := 0
 		for v := range inChan {
 			_ = v
+			i++
+			if i == 300 {
+				break
+			}
 		}
 		close(closeChan)
 	}(closeChan, outChan)
 
-	ad.Dispatch(&types.Entry{
-		JSONLine: "foo",
-	})
-	ad.Dispatch(&types.Entry{
-		JSONLine: "bar",
-	})
-	time.Sleep(3 * time.Second)
-	ad.Dispatch(&types.Entry{
-		JSONLine: "baz",
-	})
-
-	close(outChan)
 	<-closeChan
+	close(outChan)
 
 	stopChan := make(chan bool)
 	ad.Stop(stopChan)
@@ -230,9 +240,10 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	c.Shutdown()
 
 	if len(results) == 0 {
-		t.Fatalf("unexpected result length: %d == 0", len(results))
+		t.Fatalf("unexpected result length: 0")
 	}
-	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ dispatch_calls_per_sec=[0-2]", util.ToolName), []byte(results[0])); !match {
+
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ dispatch_calls_per_sec=[0-9]+", util.ToolName), []byte(results[0])); !match {
 		t.Fatalf("unexpected match content: %s", results[0])
 	}
 }

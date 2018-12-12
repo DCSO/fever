@@ -58,20 +58,22 @@ func (h *DefaultHandler) Consume(e *types.Entry) error {
 }
 
 func (ad *HandlerDispatcher) runCounter() {
-	var nofSecs uint64 = 10
+	sTime := time.Now()
 	for {
+		time.Sleep(500 * time.Millisecond)
 		select {
 		case <-ad.StopCounterChan:
 			close(ad.StoppedCounterChan)
 			return
 		default:
-			time.Sleep(time.Duration(nofSecs) * time.Second)
-			ad.Lock.Lock()
-			if ad.StatsEncoder != nil {
-				ad.PerfStats.DispatchedPerSec /= nofSecs
-				ad.StatsEncoder.Submit(ad.PerfStats)
+			if ad.StatsEncoder == nil || time.Since(sTime) < ad.StatsEncoder.SubmitPeriod {
+				continue
 			}
+			ad.Lock.Lock()
+			ad.PerfStats.DispatchedPerSec /= uint64(ad.StatsEncoder.SubmitPeriod.Seconds())
+			ad.StatsEncoder.Submit(ad.PerfStats)
 			ad.PerfStats.DispatchedPerSec = 0
+			sTime = time.Now()
 			ad.Lock.Unlock()
 		}
 	}

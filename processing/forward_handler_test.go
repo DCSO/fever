@@ -134,7 +134,7 @@ func TestForwardHandler(t *testing.T) {
 	<-cldCh
 
 	if len(coll) != 2 {
-		t.Fatal("unexpected number of alerts")
+		t.Fatalf("unexpected number of alerts: %d", len(coll))
 	}
 	if coll[0] != "foo1" {
 		t.Fatalf("invalid payload, expected 'foo1', got %s", coll[0])

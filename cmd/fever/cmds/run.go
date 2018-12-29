@@ -199,6 +199,17 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		dispatcher.RegisterHandler(bloomHandler)
 	}
 
+	ipFilePath := viper.GetString("ip.blacklist")
+	ipAlertPrefix := viper.GetString("ip.alert-prefix")
+	var ipHandler *processing.IPHandler
+	if ipFilePath != "" {
+		ipHandler, err = processing.MakeIPHandlerFromFile(ipFilePath, eventChan, forwardHandler, ipAlertPrefix)
+		if err != nil {
+			log.Fatal(err)
+		}
+		dispatcher.RegisterHandler(ipHandler)
+	}
+
 	// flow aggregation setup
 	flushPeriod := viper.GetDuration("flushtime")
 	log.Debugf("flushtime set to %v", flushPeriod)
@@ -531,6 +542,12 @@ func init() {
 	viper.BindPFlag("bloom.zipped", runCmd.PersistentFlags().Lookup("bloom-zipped"))
 	runCmd.PersistentFlags().StringP("bloom-alert-prefix", "", "BLF", "String prefix for Bloom filter alerts")
 	viper.BindPFlag("bloom.alert-prefix", runCmd.PersistentFlags().Lookup("bloom-alert-prefix"))
+
+	// IP blacklist alerting options
+	runCmd.PersistentFlags().StringP("ip-blacklist", "", "", "List with IP ranges to alert on")
+	viper.BindPFlag("ip.blacklist", runCmd.PersistentFlags().Lookup("ip-blacklist"))
+	runCmd.PersistentFlags().StringP("ip-alert-prefix", "", "IP-BLACKLIST", "String prefix for IP blacklist alerts")
+	viper.BindPFlag("ip.alert-prefix", runCmd.PersistentFlags().Lookup("ip-alert-prefix"))
 
 	// Flow extraction options
 	runCmd.PersistentFlags().BoolP("flowextract-enable", "", false, "extract and forward flow metadata")

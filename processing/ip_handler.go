@@ -141,7 +141,7 @@ func MakeIPHandlerFromFile(IPListFilename string,
 	return ih, nil
 }
 
-// Reload triggers a reload of the contents of the file with the name.
+// Reload triggers a reload of the contents of the IP list file.
 func (a *IPHandler) Reload() error {
 	ranger, err := rangerFromFile(a.IPListFilename)
 	if err != nil {

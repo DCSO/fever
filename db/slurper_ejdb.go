@@ -3,8 +3,8 @@
 package db
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/mkilling/goejdb"
+	log "github.com/sirupsen/logrus"
 )
 
 // EJDBSlurper is a Slurper that stores events in an EJDB database.

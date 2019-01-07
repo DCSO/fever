@@ -212,7 +212,7 @@ func (h *CollectorHandler) Consume(e *types.Entry) error {
 }
 
 func TestBloomHandler(t *testing.T) {
-	// make sure that alers are forwarded
+	// make sure that alerts are forwarded
 	util.PrepareEventFilter([]string{"alert"}, false)
 
 	// initalize Bloom filter and fill with 'interesting' values

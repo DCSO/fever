@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // EventProfile contains counts per event_type such as occurrences and

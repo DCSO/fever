@@ -142,6 +142,10 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 			log.Warnf("file is empty, using empty default one")
 			myBloom := bloom.Initialize(100, 0.00000001)
 			iocBloom = &myBloom
+		} else if strings.Contains(err.Error(), "value of k (number of hash functions) is too high") {
+			log.Warnf("malformed Bloom filter file, using empty default one")
+			myBloom := bloom.Initialize(100, 0.00000001)
+			iocBloom = &myBloom
 		} else {
 			return nil, err
 		}
@@ -159,7 +163,17 @@ func (a *BloomHandler) Reload() error {
 	}
 	iocBloom, err := bloom.LoadFilter(a.BloomFilename, a.BloomFileIsCompressed)
 	if err != nil {
-		return err
+		if err == io.EOF {
+			log.Warnf("file is empty, using empty default one")
+			myBloom := bloom.Initialize(100, 0.00000001)
+			iocBloom = &myBloom
+		} else if strings.Contains(err.Error(), "value of k (number of hash functions) is too high") {
+			log.Warnf("malformed Bloom filter file, using empty default one")
+			myBloom := bloom.Initialize(100, 0.00000001)
+			iocBloom = &myBloom
+		} else {
+			return err
+		}
 	}
 	a.Lock()
 	a.IocBloom = iocBloom

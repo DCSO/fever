@@ -232,6 +232,9 @@ func TestIPHandlerFromFileInvalidFormat(t *testing.T) {
 
 	hook := test.NewGlobal()
 	_, err = MakeIPHandlerFromFile(ipFile.Name(), dbChan, fwhandler, "IPF")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(hook.Entries) < 2 {
 		t.Fatal("missing log entries")

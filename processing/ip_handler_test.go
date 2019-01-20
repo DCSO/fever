@@ -232,11 +232,15 @@ func TestIPHandlerFromFileInvalidFormat(t *testing.T) {
 
 	hook := test.NewGlobal()
 	_, err = MakeIPHandlerFromFile(ipFile.Name(), dbChan, fwhandler, "IPF")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if len(hook.Entries) < 2 {
+	entries := hook.AllEntries()
+	if len(entries) < 2 {
 		t.Fatal("missing log entries")
 	}
-	if hook.Entries[0].Message != "invalid IP range 10.0.0.1/3q5435, skipping" {
+	if entries[0].Message != "invalid IP range 10.0.0.1/3q5435, skipping" {
 		t.Fatal("wrong log entry for invalid IP range")
 	}
 }

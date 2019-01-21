@@ -68,6 +68,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string) types
 			PacketInfo: eve.PacketInfo,
 			HTTP:       eve.HTTP,
 			DNS:        eve.DNS,
+			TLS:        eve.TLS,
 		}
 	}
 	newEntry := e

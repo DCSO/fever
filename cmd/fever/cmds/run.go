@@ -172,19 +172,25 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	}
 	s.Run(eventChan)
 
+	var forwardHandler processing.Handler
 	reconnectTimes := viper.GetInt("reconnect-retries")
 	// start forwarding
-	forwardHandler := processing.MakeForwardHandler(int(reconnectTimes), outputSocket)
-	dispatcher.RegisterHandler(forwardHandler)
-	if pse != nil {
-		forwardHandler.SubmitStats(pse)
+	if forward {
+		forwardHandler = processing.MakeForwardHandler(int(reconnectTimes), outputSocket)
+		if pse != nil {
+			forwardHandler.(*processing.ForwardHandler).SubmitStats(pse)
+		}
+		forwardHandler.(*processing.ForwardHandler).Run()
+		defer func() {
+			c := make(chan bool)
+			forwardHandler.(*processing.ForwardHandler).Stop(c)
+			<-c
+		}()
+	} else {
+		// in this case we use a void handler that does nothing
+		forwardHandler = processing.MakeVoidHandler()
 	}
-	forwardHandler.Run()
-	defer func() {
-		c := make(chan bool)
-		forwardHandler.Stop(c)
-		<-c
-	}()
+	dispatcher.RegisterHandler(forwardHandler)
 
 	// Bloom filter setup
 	bloomFilePath := viper.GetString("bloom.file")

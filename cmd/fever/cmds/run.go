@@ -470,7 +470,7 @@ func init() {
 	viper.BindPFlag("input.redis.nopipe", runCmd.PersistentFlags().Lookup("in-redis-nopipe"))
 
 	// Output options
-	runCmd.PersistentFlags().StringP("out-socket", "o", "/tmp/suri-forward.sock", "path to output socket (to forwarder)")
+	runCmd.PersistentFlags().StringP("out-socket", "o", "/tmp/suri-forward.sock", "path to output socket (to forwarder), empty string disables forwarding")
 	viper.BindPFlag("output.socket", runCmd.PersistentFlags().Lookup("out-socket"))
 
 	// Forwarding options

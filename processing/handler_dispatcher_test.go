@@ -19,48 +19,6 @@ import (
 	"github.com/NeowayLabs/wabbit/amqptest/server"
 )
 
-func TestHandlerDispatcherDefaultHandler(t *testing.T) {
-	outChan := make(chan types.Entry)
-	closeChan := make(chan bool)
-	ad := MakeHandlerDispatcher(outChan)
-	vals := make([]string, 0)
-
-	defaultTypes := ad.DefaultHandler.GetEventTypes()
-	if len(defaultTypes) != 1 {
-		t.Fatal("default handler should only have one type")
-	}
-	if defaultTypes[0] != "not applicable" {
-		t.Fatal("default handler should only have one type, 'not applicable'")
-	}
-	if ad.DefaultHandler.GetName() != "Default handler" {
-		t.Fatal("default handler has wrong name")
-	}
-
-	go func(closeChan chan bool, inChan chan types.Entry) {
-		for v := range inChan {
-			vals = append(vals, v.JSONLine)
-		}
-		close(closeChan)
-	}(closeChan, outChan)
-
-	ad.Dispatch(&types.Entry{
-		JSONLine: "foo",
-	})
-	ad.Dispatch(&types.Entry{
-		JSONLine: "bar",
-	})
-
-	close(outChan)
-	<-closeChan
-
-	if len(vals) != 2 {
-		t.Fatal("wrong number of entries delivered to default handler")
-	}
-	if vals[0] != "foo" || vals[1] != "bar" {
-		t.Fatalf("wrong entries delivered to default handler: %s/%s", vals[0], vals[1])
-	}
-}
-
 type Test1Handler struct {
 	Vals []string
 }

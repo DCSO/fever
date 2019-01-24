@@ -27,6 +27,8 @@ func makeFlowEvent() types.Entry {
 		PktsToClient:  int64(rand.Intn(100)),
 		PktsToServer:  int64(rand.Intn(100)),
 	}
+	jsonBytes, _ := json.Marshal(e)
+	e.JSONLine = string(jsonBytes)
 	return e
 }
 

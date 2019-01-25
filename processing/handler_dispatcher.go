@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2018, DCSO GmbH
 
 import (
 	"sync"
@@ -26,7 +26,7 @@ type HandlerDispatcherPerfStats struct {
 type HandlerDispatcher struct {
 	Lock               sync.Mutex
 	DispatchMap        map[string]([]Handler)
-	DefaultHandler     Handler
+	DBHandler          Handler
 	PerfStats          HandlerDispatcherPerfStats
 	Logger             *log.Entry
 	StatsEncoder       *util.PerformanceStatsEncoder
@@ -34,26 +34,25 @@ type HandlerDispatcher struct {
 	StoppedCounterChan chan bool
 }
 
-// DefaultHandler is a built-in default handler which simply passes events on
-// unchanged.
-type DefaultHandler struct {
-	DefaultOut chan types.Entry
+// DBHandler writes consumed events to a database.
+type DBHandler struct {
+	OutChan chan types.Entry
 }
 
 // GetName just returns the name of the default handler
-func (h *DefaultHandler) GetName() string {
+func (h *DBHandler) GetName() string {
 	return "Default handler"
 }
 
 // GetEventTypes here is a dummy method -- since this handler is never
 // registered we don't need to set this to an actual event type
-func (h *DefaultHandler) GetEventTypes() []string {
+func (h *DBHandler) GetEventTypes() []string {
 	return []string{"not applicable"}
 }
 
 // Consume simply emits ths consumed entry on the default output channel
-func (h *DefaultHandler) Consume(e *types.Entry) error {
-	h.DefaultOut <- *e
+func (h *DBHandler) Consume(e *types.Entry) error {
+	h.OutChan <- *e
 	return nil
 }
 
@@ -86,12 +85,14 @@ func (ad *HandlerDispatcher) runCounter() {
 func MakeHandlerDispatcher(databaseOut chan types.Entry) *HandlerDispatcher {
 	ad := &HandlerDispatcher{
 		DispatchMap: make(map[string]([]Handler)),
-		DefaultHandler: &DefaultHandler{
-			DefaultOut: databaseOut,
-		},
 		Logger: log.WithFields(log.Fields{
 			"domain": "dispatch",
 		}),
+	}
+	if databaseOut != nil {
+		ad.DBHandler = &DBHandler{
+			OutChan: databaseOut,
+		}
 	}
 	ad.Logger.WithFields(log.Fields{
 		"type": "*",
@@ -119,17 +120,18 @@ func (ad *HandlerDispatcher) RegisterHandler(agg Handler) {
 // Dispatch applies the set of handlers currently registered in the dispatcher
 // to the Entry object passed to it.
 func (ad *HandlerDispatcher) Dispatch(e *types.Entry) {
-	// by default just send entry to database
-	if _, ok := ad.DispatchMap[e.EventType]; !ok {
-		ad.DefaultHandler.Consume(e)
-	}
-	for _, agg := range ad.DispatchMap[e.EventType] {
-		agg.Consume(e)
+	if _, ok := ad.DispatchMap[e.EventType]; ok {
+		for _, agg := range ad.DispatchMap[e.EventType] {
+			agg.Consume(e)
+		}
 	}
 	if a, ok := ad.DispatchMap["*"]; ok {
 		for _, agg := range a {
 			agg.Consume(e)
 		}
+	}
+	if ad.DBHandler != nil {
+		ad.DBHandler.Consume(e)
 	}
 	ad.Lock.Lock()
 	ad.PerfStats.DispatchedPerSec++

@@ -186,7 +186,7 @@ func (s *PostgresSlurper) slurpPostgres(eventchan chan types.Entry) {
 				s.Logger.WithFields(log.Fields{
 					"chunksize": s.ChunkSize,
 					"table":     s.CurrentTableName,
-				}).Info("COPY complete")
+				}).Debug("COPY complete")
 			}
 			copybuf.Reset()
 		}

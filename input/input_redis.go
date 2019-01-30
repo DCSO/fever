@@ -195,7 +195,7 @@ func (ri *RedisInput) handleServerConnection() {
 
 func (ri *RedisInput) sendPerfStats(wg *sync.WaitGroup) {
 	defer wg.Done()
-	time.Sleep(perfStatsSendInterval)
+	start := time.Now()
 	for {
 		conn := ri.Pool.Get()
 		select {
@@ -203,24 +203,27 @@ func (ri *RedisInput) sendPerfStats(wg *sync.WaitGroup) {
 			conn.Close()
 			return
 		default:
-			if ri.StatsEncoder != nil {
-				r, err := conn.Do("LLEN", "suricata")
-				if err != nil {
-					if err == io.EOF {
-						conn.Close()
-						time.Sleep(perfStatsSendInterval)
-						continue
+			if time.Since(start) > perfStatsSendInterval {
+				if ri.StatsEncoder != nil {
+					r, err := conn.Do("LLEN", "suricata")
+					if err != nil {
+						if err == io.EOF {
+							conn.Close()
+							time.Sleep(perfStatsSendInterval)
+							continue
+						} else {
+							log.Warnf("error retrieving Redis list length: %s", err.Error())
+						}
 					} else {
-						log.Warnf("error retrieving Redis list length: %s", err.Error())
-					}
-				} else {
-					ri.PerfStats.RedisQueueLength, err = redis.Uint64(r, err)
-					if err == nil {
-						ri.StatsEncoder.Submit(ri.PerfStats)
+						ri.PerfStats.RedisQueueLength, err = redis.Uint64(r, err)
+						if err == nil {
+							ri.StatsEncoder.Submit(ri.PerfStats)
+						}
 					}
 				}
+				start = time.Now()
 			}
-			time.Sleep(perfStatsSendInterval)
+			time.Sleep(1 * time.Second)
 		}
 		conn.Close()
 	}

@@ -226,7 +226,6 @@ func (fh *ForwardHandler) Stop(stoppedChan chan bool) {
 		fh.OutputConn.Close()
 		fh.Lock.Unlock()
 		close(fh.StopReconnectChan)
-		close(fh.ReconnectNotifyChan)
 		close(fh.StopChan)
 		close(fh.ForwardEventChan)
 		fh.Running = false

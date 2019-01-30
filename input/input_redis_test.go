@@ -1,13 +1,12 @@
 package input
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"github.com/DCSO/fever/types"
 
 	"github.com/garyburd/redigo/redis"
+	log "github.com/sirupsen/logrus"
 	"github.com/stvp/tempredis"
 )
 
@@ -76,25 +76,31 @@ func _TestRedisInput(t *testing.T, usePipelining bool, sock string) {
 	events := make([]string, nofRedisTests)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
+	wg.Add(1)
+	go func(myWg *sync.WaitGroup) {
+		defer myWg.Done()
 		for i := 0; i < nofRedisTests; i++ {
 			events[i] = makeEveEvent([]string{"http", "dns", "foo"}[rand.Intn(3)], i)
 			client.Do("LPUSH", "suricata", events[i])
 		}
-	}()
+	}(&wg)
+	wg.Wait()
 
 	evChan := make(chan types.Entry)
 
 	coll := make([]types.Entry, 0)
-	go func() {
-		defer wg.Done()
+	wg.Add(1)
+	go func(myWg *sync.WaitGroup) {
+		defer myWg.Done()
+		i := 0
 		for e := range evChan {
 			coll = append(coll, e)
+			if i == nofRedisTests-1 {
+				return
+			}
+			i++
 		}
-	}()
+	}(&wg)
 
 	ri, err := MakeRedisInputSocket(s.Socket(), evChan, 500)
 	ri.UsePipelining = usePipelining
@@ -103,14 +109,12 @@ func _TestRedisInput(t *testing.T, usePipelining bool, sock string) {
 	}
 	ri.Run()
 
-	time.Sleep(5 * time.Second)
+	wg.Wait()
 
 	stopChan := make(chan bool)
 	ri.Stop(stopChan)
 	<-stopChan
 	close(evChan)
-
-	wg.Wait()
 
 	sort.Sort(byID(coll))
 
@@ -187,10 +191,7 @@ func _TestRedisGone(t *testing.T, usePipelining bool, sock string) {
 	events := make([]string, nofRedisTests)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
-
 	go func() {
-		defer wg.Done()
 		for i := 0; i < nofRedisTests; i++ {
 			events[i] = makeEveEvent([]string{"http", "dns", "foo"}[rand.Intn(3)], i)
 			client.Do("LPUSH", "suricata", events[i])
@@ -198,21 +199,25 @@ func _TestRedisGone(t *testing.T, usePipelining bool, sock string) {
 	}()
 
 	coll := make([]types.Entry, 0)
-	go func() {
-		defer wg.Done()
+	wg.Add(1)
+	go func(myWg *sync.WaitGroup) {
+		defer myWg.Done()
+		i := 0
 		for e := range evChan {
 			coll = append(coll, e)
+			if i == nofRedisTests-1 {
+				return
+			}
+			i++
 		}
-	}()
+	}(&wg)
 
-	time.Sleep(5 * time.Second)
+	wg.Wait()
 
 	stopChan := make(chan bool)
 	ri.Stop(stopChan)
 	<-stopChan
 	close(evChan)
-
-	wg.Wait()
 
 	sort.Sort(byID(coll))
 
@@ -233,7 +238,7 @@ func _TestRedisGone(t *testing.T, usePipelining bool, sock string) {
 	}
 }
 
-func _TestRedisGoneWithPipelining(t *testing.T) {
+func TestRedisGoneWithPipelining(t *testing.T) {
 	dir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		log.Fatal(err)

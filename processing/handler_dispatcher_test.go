@@ -12,7 +12,6 @@ import (
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/NeowayLabs/wabbit"
 	"github.com/NeowayLabs/wabbit/amqptest"
@@ -132,7 +131,6 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 	results := make([]string, 0)
 	c, err := util.NewConsumer(serverURL, "nsm.test.metrics", "direct", "nsm.test.metrics.testqueue",
 		"", "", func(d wabbit.Delivery) {
-			log.Info(string(d.Body()))
 			results = append(results, string(d.Body()))
 		})
 	if err != nil {

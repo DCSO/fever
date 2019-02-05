@@ -1,28 +1,95 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/DCSO/fever/types"
+	log "github.com/sirupsen/logrus"
 )
 
+func makeUnicornFlowEvent() types.Entry {
+	e := types.Entry{
+		SrcIP:         fmt.Sprintf("10.%d.%d.%d", rand.Intn(250), rand.Intn(250), rand.Intn(250)),
+		SrcPort:       []int64{1, 2, 3, 4, 5}[rand.Intn(5)],
+		DestIP:        fmt.Sprintf("10.0.0.%d", rand.Intn(250)),
+		DestPort:      []int64{11, 12, 13, 14, 15}[rand.Intn(5)],
+		Timestamp:     time.Now().Format(types.SuricataTimestampFormat),
+		EventType:     "flow",
+		Proto:         "TCP",
+		BytesToClient: int64(rand.Intn(10000)),
+		BytesToServer: int64(rand.Intn(10000)),
+		PktsToClient:  int64(rand.Intn(100)),
+		PktsToServer:  int64(rand.Intn(100)),
+	}
+	jsonBytes, _ := json.Marshal(e)
+	e.JSONLine = string(jsonBytes)
+	return e
+}
+
 type testSubmitter struct {
-	Data []string
+	DataLock sync.Mutex
+	Data     []string
 }
 
 func (s *testSubmitter) Submit(in []byte, key string, contentType string) {
+	s.DataLock.Lock()
+	defer s.DataLock.Unlock()
 	s.Data = append(s.Data, string(in))
 }
 
 func (s *testSubmitter) SubmitWithHeaders(in []byte, key string, contentType string, hdr map[string]string) {
 	s.Submit(in, key, contentType)
+}
+
+func (s *testSubmitter) GetNumberSubmissions() int {
+	s.DataLock.Lock()
+	defer s.DataLock.Unlock()
+	return len(s.Data)
+}
+
+func (s *testSubmitter) GetTotalAggs() int {
+	s.DataLock.Lock()
+	defer s.DataLock.Unlock()
+	totalTuples := make(map[string](int))
+	for _, data := range s.Data {
+		var agg UnicornAggregate
+		err := json.Unmarshal([]byte(data), &agg)
+		if err != nil {
+			log.Fatalf("error parsing JSON: %s", err.Error())
+		}
+		for k := range agg.FlowTuples {
+			totalTuples[k]++
+		}
+	}
+	return len(totalTuples)
+}
+
+func (s *testSubmitter) GetFlowTuples() map[string](map[string]int64) {
+	s.DataLock.Lock()
+	defer s.DataLock.Unlock()
+	allTuples := make(map[string](map[string]int64))
+	for _, data := range s.Data {
+		var agg UnicornAggregate
+		err := json.Unmarshal([]byte(data), &agg)
+		if err != nil {
+			log.Fatalf("error parsing JSON: %s", err.Error())
+		}
+		for k := range agg.FlowTuples {
+			if _, ok := allTuples[k]; !ok {
+				allTuples[k] = make(map[string]int64)
+			}
+			allTuples[k]["count"] += agg.FlowTuples[k]["count"]
+		}
+	}
+	return allTuples
 }
 
 func (s *testSubmitter) UseCompression() {}
@@ -34,16 +101,16 @@ func TestUnicornAggregatorNoSubmission(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 2*time.Second, false)
+	f := MakeUnicornAggregator(dsub, 100*time.Millisecond, false)
 	f.Run()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	consumeWaitChan := make(chan bool)
 	f.Stop(consumeWaitChan)
 	<-consumeWaitChan
 
-	if len(dsub.Data) == 0 {
+	if dsub.GetNumberSubmissions() == 0 {
 		t.Fatalf("collected aggregations are empty")
 	}
 
@@ -61,19 +128,27 @@ func TestUnicornAggregator(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 2*time.Second, false)
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
 	f.Run()
 
 	createdFlows := make(map[string]int)
-	for i := 0; i < 10000; i++ {
-		ev := makeFlowEvent()
+	for i := 0; i < 200000; i++ {
+		ev := makeUnicornFlowEvent()
 		if ev.BytesToClient > 0 {
 			key := fmt.Sprintf("%s_%s_%d", ev.SrcIP, ev.DestIP, ev.DestPort)
 			createdFlows[key]++
 		}
 		f.Consume(&ev)
 	}
-	time.Sleep(5 * time.Second)
+
+	for {
+		if dsub.GetTotalAggs() < len(createdFlows) {
+			log.Debug(dsub.GetTotalAggs())
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			break
+		}
+	}
 
 	consumeWaitChan := make(chan bool)
 	f.Stop(consumeWaitChan)
@@ -83,6 +158,8 @@ func TestUnicornAggregator(t *testing.T) {
 		t.Fatalf("collected aggregations are empty")
 	}
 
+	log.Info(dsub.GetTotalAggs(), len(createdFlows), len(dsub.Data))
+
 	var totallen int
 	for _, v := range dsub.Data {
 		totallen += len(v)
@@ -91,17 +168,12 @@ func TestUnicornAggregator(t *testing.T) {
 		t.Fatalf("length of collected aggregations is zero")
 	}
 
-	var agg UnicornAggregate
-	err := json.Unmarshal([]byte(dsub.Data[0]), &agg)
-	if err != nil {
-		t.Fatalf("error parsing JSON: %s", err.Error())
-	}
-	if len(agg.FlowTuples) != len(createdFlows) {
-		t.Fatalf("unexpected number of flow aggregates: %d/%d", len(agg.FlowTuples),
+	if dsub.GetTotalAggs() != len(createdFlows) {
+		t.Fatalf("unexpected number of flow aggregates: %d/%d", dsub.GetTotalAggs(),
 			len(createdFlows))
 	}
 
-	for k, v := range agg.FlowTuples {
+	for k, v := range dsub.GetFlowTuples() {
 		if _, ok := createdFlows[k]; !ok {
 			t.Fatalf("missing flow aggregate: %s", k)
 		}
@@ -117,7 +189,7 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 2*time.Second, false)
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
 	feedWaitChan := make(chan bool)
 	outChan := make(chan types.Entry)
 
@@ -134,15 +206,23 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	f.Run()
 
 	createdFlows := make(map[string]int)
-	for i := 0; i < 10000; i++ {
-		ev := makeFlowEvent()
+	for i := 0; i < 200000; i++ {
+		ev := makeUnicornFlowEvent()
 		if ev.BytesToClient > 0 {
 			key := fmt.Sprintf("%s_%s_%d", ev.SrcIP, ev.DestIP, ev.DestPort)
 			createdFlows[key]++
 		}
 		d.Dispatch(&ev)
 	}
-	time.Sleep(5 * time.Second)
+
+	for {
+		if dsub.GetTotalAggs() < len(createdFlows) {
+			log.Debug(dsub.GetTotalAggs())
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			break
+		}
+	}
 
 	consumeWaitChan := make(chan bool)
 	f.Stop(consumeWaitChan)
@@ -154,6 +234,8 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 		t.Fatalf("collected aggregations are empty")
 	}
 
+	log.Info(dsub.GetTotalAggs(), len(createdFlows), len(dsub.Data))
+
 	var totallen int
 	for _, v := range dsub.Data {
 		totallen += len(v)
@@ -162,17 +244,12 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 		t.Fatalf("length of collected aggregations is zero")
 	}
 
-	var agg UnicornAggregate
-	err := json.Unmarshal([]byte(dsub.Data[0]), &agg)
-	if err != nil {
-		t.Fatalf("error parsing JSON: %s", err.Error())
-	}
-	if len(agg.FlowTuples) != len(createdFlows) {
-		t.Fatalf("unexpected number of flow aggregates: %d/%d", len(agg.FlowTuples),
+	if dsub.GetTotalAggs() != len(createdFlows) {
+		t.Fatalf("unexpected number of flow aggregates: %d/%d", dsub.GetTotalAggs(),
 			len(createdFlows))
 	}
 
-	for k, v := range agg.FlowTuples {
+	for k, v := range dsub.GetFlowTuples() {
 		if _, ok := createdFlows[k]; !ok {
 			t.Fatalf("missing flow aggregate: %s", k)
 		}

@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"github.com/NeowayLabs/wabbit"
@@ -19,6 +19,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+)
+
+const (
+	numFlowExtractorEvents = 100000
 )
 
 func makeFlowExtractorEvent(ipv6 bool) types.Entry {
@@ -82,8 +86,6 @@ func TestFlowExtractor(t *testing.T) {
 	}
 	defer c.Shutdown()
 
-	nEvents := 10000
-
 	// set up submitter
 	submitter, err := util.MakeAMQPSubmitterWithReconnector(serverURL,
 		"tdh.flows", true, func(url string) (wabbit.Conn, string, error) {
@@ -96,7 +98,7 @@ func TestFlowExtractor(t *testing.T) {
 	}
 	defer submitter.Finish()
 
-	mla, err := MakeFlowExtractor(2*time.Second, 100, "", submitter)
+	mla, err := MakeFlowExtractor(1*time.Second, 100, "", submitter)
 
 	mla.BloomFilter = makeBloomFilter()
 
@@ -108,7 +110,7 @@ func TestFlowExtractor(t *testing.T) {
 
 	expectedFlows := make([]types.Entry, 0)
 
-	for i := 0; i < nEvents; i++ {
+	for i := 0; i < numFlowExtractorEvents; i++ {
 		ipv6 := false
 		//we mix in some IPv6 packets...
 		if rand.Intn(2) == 0 {
@@ -124,24 +126,34 @@ func TestFlowExtractor(t *testing.T) {
 		}
 	}
 
-	time.Sleep(3 * time.Second)
-
-	flows := make([]types.FlowEvent, 0)
-
-	resultsLock.Lock()
-	for i := range results {
-		result := results[i]
-		buffer := bytes.NewBufferString(result)
-		for {
-			var fe types.FlowEvent
-			err := fe.Unmarshal(buffer)
-			if err != nil {
-				break
+	var flows []types.FlowEvent
+CheckLoop:
+	for {
+		flows = make([]types.FlowEvent, 0)
+		resultsLock.Lock()
+		for i := range results {
+			result := results[i]
+			buffer := bytes.NewBufferString(result)
+			for {
+				var fe types.FlowEvent
+				err := fe.Unmarshal(buffer)
+				if err != nil {
+					break
+				}
+				flows = append(flows, fe)
+				if len(flows) == len(expectedFlows) {
+					break CheckLoop
+				}
 			}
-			flows = append(flows, fe)
 		}
+		resultsLock.Unlock()
+		time.Sleep(100 * time.Millisecond)
 	}
-	resultsLock.Unlock()
+
+	stopChan := make(chan bool)
+	mla.Stop(stopChan)
+	<-stopChan
+
 	if len(flows) != len(expectedFlows) {
 		t.Fatalf("Error: Expected %d flows, got %d!", len(expectedFlows), len(flows))
 	}
@@ -197,7 +209,6 @@ func TestFlowExtractor(t *testing.T) {
 			if flow.PktsToClient != expectedFlow.PktsToClient {
 				t.Errorf("PktsToClient do not match!")
 			}
-
 		}
 	}
 

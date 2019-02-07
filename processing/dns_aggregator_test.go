@@ -1,18 +1,23 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+)
+
+const (
+	numTestEvents = 100000
 )
 
 func makeDNSEvent() types.Entry {
@@ -36,7 +41,9 @@ func TestDNSAggregator(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	outChan := make(chan types.Entry)
 	consumeWaitChan := make(chan bool)
-	f := MakeDNSAggregator(2*time.Second, outChan)
+	closeChan := make(chan bool)
+
+	f := MakeDNSAggregator(1*time.Second, outChan)
 
 	daTypes := f.GetEventTypes()
 	if len(daTypes) != 1 {
@@ -49,6 +56,7 @@ func TestDNSAggregator(t *testing.T) {
 		t.Fatal("DNS aggregation handler has wrong name")
 	}
 
+	var observedLock sync.Mutex
 	observedSituations := make(map[string]int)
 	observedDomains := make(map[string]bool)
 	setupSituations := make(map[string]int)
@@ -56,27 +64,34 @@ func TestDNSAggregator(t *testing.T) {
 
 	go func() {
 		var buf bytes.Buffer
-		for e := range outChan {
-			var out AggregateDNSEvent
-			err := json.Unmarshal([]byte(e.JSONLine), &out)
-			if err != nil {
-				t.Fail()
-			}
-			for _, v := range out.DNS.Details {
-				buf.Write([]byte(out.DNS.Rrname))
-				buf.Write([]byte(v.Rrtype))
-				buf.Write([]byte(v.Rdata))
-				buf.Write([]byte(v.Rcode))
-				observedSituations[buf.String()]++
-				observedDomains[out.DNS.Rrname] = true
-				buf.Reset()
+		for {
+			select {
+			case e := <-outChan:
+				var out AggregateDNSEvent
+				err := json.Unmarshal([]byte(e.JSONLine), &out)
+				if err != nil {
+					t.Fail()
+				}
+				for _, v := range out.DNS.Details {
+					buf.Write([]byte(out.DNS.Rrname))
+					buf.Write([]byte(v.Rrtype))
+					buf.Write([]byte(v.Rdata))
+					buf.Write([]byte(v.Rcode))
+					observedLock.Lock()
+					observedSituations[buf.String()]++
+					observedLock.Unlock()
+					observedDomains[out.DNS.Rrname] = true
+					buf.Reset()
+				}
+			case <-closeChan:
+				close(consumeWaitChan)
+				return
 			}
 		}
-		close(consumeWaitChan)
 	}()
 
 	f.Run()
-	for i := 0; i < 50000; i++ {
+	for i := 0; i < numTestEvents; i++ {
 		var buf bytes.Buffer
 		ev := makeDNSEvent()
 		buf.Write([]byte(ev.DNSRRName))
@@ -88,12 +103,27 @@ func TestDNSAggregator(t *testing.T) {
 		buf.Reset()
 		f.Consume(&ev)
 	}
-	time.Sleep(10 * time.Second)
+
+	go func() {
+		for {
+			observedLock.Lock()
+			if len(setupSituations) <= len(observedSituations) {
+				observedLock.Unlock()
+				break
+			}
+			observedLock.Unlock()
+			time.Sleep(100 * time.Millisecond)
+
+		}
+		close(closeChan)
+	}()
+
+	<-consumeWaitChan
+	close(outChan)
+
 	waitChan := make(chan bool)
 	f.Stop(waitChan)
 	<-waitChan
-	close(outChan)
-	<-consumeWaitChan
 
 	if len(setupSituations) != len(observedSituations) {
 		t.Fatalf("results have different dimensions: %d/%d", len(setupSituations),

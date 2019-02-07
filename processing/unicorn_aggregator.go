@@ -144,8 +144,8 @@ func (a *UnicornAggregator) Run() {
 					a.start()
 					i = 0 * time.Second
 				}
-				time.Sleep(1 * time.Second)
-				i += 1 * time.Second
+				time.Sleep(100 * time.Millisecond)
+				i += 100 * time.Millisecond
 			}
 		}
 	}()

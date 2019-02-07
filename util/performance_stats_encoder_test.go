@@ -1,7 +1,7 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"github.com/NeowayLabs/wabbit"
 	"github.com/NeowayLabs/wabbit/amqptest"
 	"github.com/NeowayLabs/wabbit/amqptest/server"
+	log "github.com/sirupsen/logrus"
 )
 
 var testStruct = struct {
@@ -68,11 +69,7 @@ func TestPerformanceStatsEncoderEmpty(t *testing.T) {
 	defer statssubmitter.Finish()
 
 	// create InfluxDB line protocol encoder/submitter
-	pse := MakePerformanceStatsEncoder(statssubmitter, 2*time.Second, false)
-
-	time.Sleep(1 * time.Second)
-	pse.Submit(testStructUntagged)
-	time.Sleep(3 * time.Second)
+	pse := MakePerformanceStatsEncoder(statssubmitter, 1*time.Second, false)
 	pse.Submit(testStructUntagged)
 	time.Sleep(1 * time.Second)
 
@@ -91,12 +88,15 @@ func TestPerformanceStatsEncoder(t *testing.T) {
 
 	// set up consumer
 	results := make([]string, 0)
+	gateChan := make(chan bool)
 	var resultsLock sync.Mutex
 	c, err := NewConsumer(serverURL, "tdh.metrics", "direct", "tdh.metrics.testqueue",
 		"", "", func(d wabbit.Delivery) {
 			resultsLock.Lock()
 			results = append(results, string(d.Body()))
 			resultsLock.Unlock()
+			log.Info(string(d.Body()))
+			gateChan <- true
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -117,17 +117,16 @@ func TestPerformanceStatsEncoder(t *testing.T) {
 	defer statssubmitter.Finish()
 
 	// create InfluxDB line protocol encoder/submitter
-	pse := MakePerformanceStatsEncoder(statssubmitter, 2*time.Second, false)
-	time.Sleep(1 * time.Second)
+	pse := MakePerformanceStatsEncoder(statssubmitter, 1*time.Second, false)
 	pse.Submit(testStruct)
-	time.Sleep(1 * time.Second)
+	<-gateChan
 	pse.Submit(testStruct)
-	time.Sleep(1 * time.Second)
+	<-gateChan
 	testStruct.TestVal = 3
 	pse.Submit(testStruct)
-	time.Sleep(1 * time.Second)
+	<-gateChan
 	pse.Submit(testStruct)
-	time.Sleep(2 * time.Second)
+	<-gateChan
 
 	resultsLock.Lock()
 	if len(results) != 4 {

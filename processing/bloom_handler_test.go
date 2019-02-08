@@ -449,3 +449,67 @@ func TestBloomHandlerEmptyInput(t *testing.T) {
 		t.Fatal("bloom filter should not be nil for empty file")
 	}
 }
+
+func TestBloomHandlerURL(t *testing.T) {
+	e1 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "/",
+		HTTPMethod: "GET",
+	}
+	eve1 := types.EveEvent{
+		EventType: e1.EventType,
+		SrcIP:     e1.SrcIP,
+		SrcPort:   int(e1.SrcPort),
+		DestIP:    e1.DestIP,
+		DestPort:  int(e1.DestPort),
+		Proto:     e1.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e1.HTTPHost,
+			URL:      e1.HTTPUrl,
+		},
+	}
+	json1, err := json.Marshal(eve1)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e1.JSONLine = string(json1)
+	}
+	e2 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "/",
+		HTTPMethod: "GET",
+	}
+	eve2 := types.EveEvent{
+		EventType: e2.EventType,
+		SrcIP:     e2.SrcIP,
+		SrcPort:   int(e2.SrcPort),
+		DestIP:    e2.DestIP,
+		DestPort:  int(e2.DestPort),
+		Proto:     e2.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e2.HTTPHost,
+			URL:      e2.HTTPUrl,
+		},
+	}
+	json2, err := json.Marshal(eve2)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e2.JSONLine = string(json2)
+	}
+
+}

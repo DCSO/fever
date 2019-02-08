@@ -227,6 +227,11 @@ type packetInfo struct {
 	Linktype int `json:"linktype"`
 }
 
+// ExtraInfo contains non-EVE-standard extra information
+type ExtraInfo struct {
+	BloomIOC string `json:"bloom-ioc,omitempty"`
+}
+
 // EveEvent is the huge struct which can contain a parsed suricata eve.json
 // log event.
 type EveEvent struct {
@@ -257,4 +262,5 @@ type EveEvent struct {
 	SSH              *sshEvent      `json:"ssh,omitempty"`
 	TLS              *TLSEvent      `json:"tls,omitempty"`
 	Stats            *statsEvent    `json:"stats,omitempty"`
+	ExtraInfo        *ExtraInfo     `json:"_extra,omitempty"`
 }

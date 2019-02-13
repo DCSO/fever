@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -174,7 +175,8 @@ func fillBloom(b *bloom.BloomFilter) {
 
 // CollectorHandler simply gathers consumed events in a list
 type CollectorHandler struct {
-	Entries map[string]bool
+	EntriesLock sync.Mutex
+	Entries     map[string]bool
 }
 
 func (h *CollectorHandler) GetName() string {
@@ -186,6 +188,8 @@ func (h *CollectorHandler) GetEventTypes() []string {
 }
 
 func (h *CollectorHandler) Consume(e *types.Entry) error {
+	h.EntriesLock.Lock()
+	defer h.EntriesLock.Unlock()
 	match := reHTTPURL.FindStringSubmatch(e.JSONLine)
 	if match != nil {
 		url := match[2]
@@ -209,6 +213,18 @@ func (h *CollectorHandler) Consume(e *types.Entry) error {
 		return nil
 	}
 	return nil
+}
+
+func (h *CollectorHandler) Reset() {
+	h.EntriesLock.Lock()
+	defer h.EntriesLock.Unlock()
+	h.Entries = make(map[string]bool)
+}
+
+func (h *CollectorHandler) GetEntries() map[string]bool {
+	h.EntriesLock.Lock()
+	defer h.EntriesLock.Unlock()
+	return h.Entries
 }
 
 func TestBloomHandler(t *testing.T) {
@@ -448,4 +464,279 @@ func TestBloomHandlerEmptyInput(t *testing.T) {
 	if bf == nil {
 		t.Fatal("bloom filter should not be nil for empty file")
 	}
+}
+
+func TestBloomHandlerURL(t *testing.T) {
+	e1 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "http://foo.bar.de/oddlyspecific",
+		HTTPMethod: "GET",
+	}
+	eve1 := types.EveEvent{
+		EventType: e1.EventType,
+		SrcIP:     e1.SrcIP,
+		SrcPort:   int(e1.SrcPort),
+		DestIP:    e1.DestIP,
+		DestPort:  int(e1.DestPort),
+		Proto:     e1.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e1.HTTPHost,
+			URL:      e1.HTTPUrl,
+		},
+	}
+	json1, err := json.Marshal(eve1)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e1.JSONLine = string(json1)
+	}
+	e2 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "/oddlyspecific",
+		HTTPMethod: "GET",
+	}
+	eve2 := types.EveEvent{
+		EventType: e2.EventType,
+		SrcIP:     e2.SrcIP,
+		SrcPort:   int(e2.SrcPort),
+		DestIP:    e2.DestIP,
+		DestPort:  int(e2.DestPort),
+		Proto:     e2.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e2.HTTPHost,
+			URL:      e2.HTTPUrl,
+		},
+	}
+	json2, err := json.Marshal(eve2)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e2.JSONLine = string(json2)
+	}
+	e3 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.com",
+		HTTPUrl:    "/oddlyspecific",
+		HTTPMethod: "GET",
+	}
+	eve3 := types.EveEvent{
+		EventType: e3.EventType,
+		SrcIP:     e3.SrcIP,
+		SrcPort:   int(e3.SrcPort),
+		DestIP:    e3.DestIP,
+		DestPort:  int(e3.DestPort),
+		Proto:     e3.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e3.HTTPHost,
+			URL:      e3.HTTPUrl,
+		},
+	}
+	json3, err := json.Marshal(eve3)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e3.JSONLine = string(json3)
+	}
+
+	dbChan := make(chan types.Entry)
+	dbWritten := make([]types.Entry, 0)
+	consumeWaitChan := make(chan bool)
+	go func() {
+		for e := range dbChan {
+			dbWritten = append(dbWritten, e)
+		}
+		close(consumeWaitChan)
+	}()
+
+	util.PrepareEventFilter([]string{"alert"}, false)
+
+	// initalize Bloom filter and fill with 'interesting' values
+	bf := bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/oddlyspecific"))
+
+	// handler to receive forwarded events
+	fwhandler := &CollectorHandler{
+		Entries: make(map[string]bool),
+	}
+
+	bh := MakeBloomHandler(&bf, dbChan, fwhandler, "FOO BAR")
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("http://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.com/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/"))
+	fwhandler.Reset()
+	bh.Consume(&e1)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("http://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.com/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/"))
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("http://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.de/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("https://foo.bar.com/oddlyspecific"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	bf = bloom.Initialize(100000, 0.0000001)
+	bf.Add([]byte("/"))
+	fwhandler.Reset()
+	bh.Consume(&e3)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+
 }

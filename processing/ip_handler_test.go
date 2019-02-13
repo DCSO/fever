@@ -60,9 +60,6 @@ func makeIPHTTPEvent(srcip string, dstip string) types.Entry {
 	return e
 }
 
-var ipTestURLs []string
-var ipTestHosts []string
-
 // IPCollectorHandler gathers consumed alerts in a list
 type IPCollectorHandler struct {
 	Entries []string

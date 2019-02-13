@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -28,7 +29,7 @@ var sigs = map[string]string{
 // indicator match, e.g. a Bloom filter hit. The resulting alert will retain
 // the triggering event's metadata (e.g. 'dns' or 'http' objects) as well as
 // its timestamp.
-func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string) types.Entry {
+func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc string) types.Entry {
 	var eve types.EveEvent
 	var newEve types.EveEvent
 	var err = json.Unmarshal([]byte(e.JSONLine), &eve)
@@ -69,6 +70,9 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string) types
 			HTTP:       eve.HTTP,
 			DNS:        eve.DNS,
 			TLS:        eve.TLS,
+			ExtraInfo: &types.ExtraInfo{
+				BloomIOC: ioc,
+			},
 		}
 	}
 	newEntry := e
@@ -188,29 +192,57 @@ func (a *BloomHandler) Reload() error {
 // Consume processes an Entry, emitting alerts if there is a match
 func (a *BloomHandler) Consume(e *types.Entry) error {
 	if e.EventType == "http" {
-		var checkStr string
+		var fullURL string
 		a.Lock()
-		if strings.Contains(e.HTTPUrl, "://") {
-			checkStr = e.HTTPUrl
-		} else {
-			checkStr = "http://" + e.HTTPHost + e.HTTPUrl
-		}
-		if a.IocBloom.Check([]byte(checkStr)) {
-			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix)
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
-		}
+		// check HTTP host first: foo.bar.de
 		if a.IocBloom.Check([]byte(e.HTTPHost)) {
-			n := MakeAlertEntryForHit(*e, "http-host", a.AlertPrefix)
+			n := MakeAlertEntryForHit(*e, "http-host", a.AlertPrefix, e.HTTPHost)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
+		// we sometimes see full 'URLs' in the corresponding EVE field when
+		// observing requests via proxies. In this case there is no need to
+		// canonicalize the URL, it is already qualified.
+		if strings.Contains(e.HTTPUrl, "://") {
+			fullURL = e.HTTPUrl
+		} else {
+			// in all other cases, we need to create a full URL from the components
+			fullURL = "http://" + e.HTTPHost + e.HTTPUrl
+		}
+		// we now should have a full URL regardless of where it came from:
+		// http://foo.bar.de:123/baz
+		u, err := url.Parse(fullURL)
+		if err != nil {
+			log.Warnf("could not parse URL '%s': %s", fullURL, err.Error())
+			a.Unlock()
+			return nil
+		}
+
+		// http://foo.bar.de:123/baz
+		if a.IocBloom.Check([]byte(fullURL)) {
+			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, fullURL)
+			a.DatabaseEventChan <- n
+			a.ForwardHandler.Consume(&n)
+		} else
+		// foo.bar.de:123/baz
+		if a.IocBloom.Check([]byte(fmt.Sprintf("%s%s", u.Host, u.Path))) {
+			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, fmt.Sprintf("%s%s", u.Host, u.Path))
+			a.DatabaseEventChan <- n
+			a.ForwardHandler.Consume(&n)
+		} else
+		// /baz
+		if a.IocBloom.Check([]byte(u.Path)) {
+			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, u.Path)
+			a.DatabaseEventChan <- n
+			a.ForwardHandler.Consume(&n)
+		}
+
 		a.Unlock()
 	}
 	if e.EventType == "dns" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.DNSRRName)) {
-			n := MakeAlertEntryForHit(*e, "dns", a.AlertPrefix)
+			n := MakeAlertEntryForHit(*e, "dns", a.AlertPrefix, e.DNSRRName)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
@@ -219,7 +251,7 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 	if e.EventType == "tls" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.TLSSni)) {
-			n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix)
+			n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix, e.TLSSni)
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}

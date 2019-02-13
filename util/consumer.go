@@ -60,13 +60,13 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 	log.Debugf("dialing %q", amqpURI)
 	c.conn, err = amqptest.Dial(amqpURI)
 	if err != nil {
-		return nil, fmt.Errorf("Dial: %s", err)
+		return nil, fmt.Errorf("dial: %s", err)
 	}
 
 	log.Debugf("got Connection, getting Channel")
 	c.channel, err = c.conn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("Channel: %s", err)
+		return nil, fmt.Errorf("channel: %s", err)
 	}
 
 	log.Debugf("got Channel, declaring Exchange (%q)", exchange)
@@ -80,7 +80,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 			"noWait":   false,
 		},
 	); err != nil {
-		return nil, fmt.Errorf("Exchange Declare: %s", err)
+		return nil, fmt.Errorf("exchange declare: %s", err)
 	}
 
 	queue, err := c.channel.QueueDeclare(
@@ -93,7 +93,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Queue Declare: %s", err)
+		return nil, fmt.Errorf("queue declare: %s", err)
 	}
 
 	log.Debugf("declared Queue (%q %d messages, %d consumers), binding to Exchange (key %q)",
@@ -107,7 +107,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 			"noWait": false,
 		},
 	); err != nil {
-		return nil, fmt.Errorf("Queue Bind: %s", err)
+		return nil, fmt.Errorf("queue bind: %s", err)
 	}
 
 	log.Debugf("Queue bound to Exchange, starting Consume (consumer tag %q)", c.tag)
@@ -121,7 +121,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Queue Consume: %s", err)
+		return nil, fmt.Errorf("queue consume: %s", err)
 	}
 	go handle(deliveries, c.done, c.Callback)
 
@@ -132,7 +132,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string, c
 func (c *Consumer) Shutdown() error {
 	// will close() the deliveries channel
 	if err := c.channel.Close(); err != nil {
-		return fmt.Errorf("Channel close failed: %s", err)
+		return fmt.Errorf("channel close failed: %s", err)
 	}
 	if err := c.conn.Close(); err != nil {
 		return fmt.Errorf("AMQP connection close error: %s", err)

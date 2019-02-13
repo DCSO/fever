@@ -15,7 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var cnt, lastcnt uint64
 var perfStatsSendInterval = 10 * time.Second
 var backOffTime = 500 * time.Millisecond
 

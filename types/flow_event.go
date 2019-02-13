@@ -38,7 +38,7 @@ var maxBytes = int64(^uint32(0))
 func parseIP(stringIP string) ([]byte, error) {
 	ip := net.ParseIP(stringIP)
 	if ip == nil {
-		return nil, errors.New("Invalid IP")
+		return nil, errors.New("invalid IP")
 	}
 	ipv4 := ip.To4()
 	if ipv4 == nil {
@@ -99,7 +99,7 @@ func (fe *FlowEvent) FromEntry(e *Entry) error {
 	fe.Format |= 1 << 2 //bits 3,4,5 and 6 mark the version (currently 1)
 
 	if len(srcIP) != len(destIP) {
-		return fmt.Errorf("Source and destination IPS have different lengths O.o")
+		return fmt.Errorf("source and destination IPS have different lengths O.o")
 	}
 
 	if e.BytesToServer > maxBytes {

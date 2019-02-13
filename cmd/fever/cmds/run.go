@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var verbose = false
 var dispatcher *processing.HandlerDispatcher
 var forward bool
 

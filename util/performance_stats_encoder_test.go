@@ -132,16 +132,16 @@ func TestPerformanceStatsEncoder(t *testing.T) {
 	if len(results) != 4 {
 		t.Fatalf("unexpected result length: %d != 4", len(results))
 	}
-	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=1i,testvalue=2i", ToolName), []byte(results[0])); !match {
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=1,testvalue=2", ToolName), []byte(results[0])); !match {
 		t.Fatalf("unexpected match content: %s", results[0])
 	}
-	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=1i,testvalue=2i", ToolName), []byte(results[1])); !match {
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=1,testvalue=2", ToolName), []byte(results[1])); !match {
 		t.Fatalf("unexpected match content: %s", results[1])
 	}
-	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=3i,testvalue=2i", ToolName), []byte(results[2])); !match {
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=3,testvalue=2", ToolName), []byte(results[2])); !match {
 		t.Fatalf("unexpected match content: %s", results[2])
 	}
-	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=3i,testvalue=2i", ToolName), []byte(results[3])); !match {
+	if match, _ := regexp.Match(fmt.Sprintf("^%s,[^ ]+ testval=3,testvalue=2", ToolName), []byte(results[3])); !match {
 		t.Fatalf("unexpected match content: %s", results[3])
 	}
 	resultsLock.Unlock()

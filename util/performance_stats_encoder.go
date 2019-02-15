@@ -52,7 +52,7 @@ func MakePerformanceStatsEncoder(statsSubmitter StatsSubmitter,
 func (a *PerformanceStatsEncoder) Submit(val interface{}) {
 	a.Lock()
 	a.Buffer.Reset()
-	err := a.Encoder.Encode(ToolName, val, a.Tags)
+	err := a.Encoder.EncodeWithoutTypes(ToolName, val, a.Tags)
 	if err != nil {
 		if a.Logger != nil {
 			a.Logger.WithFields(log.Fields{}).Warn(err)

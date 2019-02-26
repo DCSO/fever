@@ -4,6 +4,7 @@ package processing
 // Copyright (c) 2017, DCSO GmbH
 
 import (
+	"encoding/json"
 	"net"
 	"sync"
 	"time"
@@ -25,6 +26,8 @@ type ForwardHandlerPerfStats struct {
 // event types to be forwarded.
 type ForwardHandler struct {
 	Logger              *log.Entry
+	DoRDNS              bool
+	RDNSHandler         *RDNSHandler
 	ForwardEventChan    chan []byte
 	OutputSocket        string
 	OutputConn          net.Conn
@@ -169,6 +172,7 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 		ReconnectTimes:      reconnectTimes,
 		ReconnectNotifyChan: make(chan bool),
 		StopReconnectChan:   make(chan bool),
+		RDNSHandler:         MakeRDNSHandler(util.NewHostNamer(60*time.Second, 60*time.Second)),
 	}
 	return fh
 }
@@ -177,8 +181,24 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 func (fh *ForwardHandler) Consume(e *types.Entry) error {
 	doForwardThis := util.ForwardAllEvents || util.AllowType(e.EventType)
 	if doForwardThis {
-		jsonCopy := make([]byte, len(e.JSONLine))
-		copy(jsonCopy, e.JSONLine)
+		var ev types.EveEvent
+		err := json.Unmarshal([]byte(e.JSONLine), &ev)
+		if err != nil {
+			return err
+		}
+		if fh.DoRDNS {
+			err = fh.RDNSHandler.Consume(e)
+			if err != nil {
+				return err
+			}
+			ev.SrcHost = e.SrcHosts
+			ev.DestHost = e.DestHosts
+		}
+		var jsonCopy []byte
+		jsonCopy, err = json.Marshal(ev)
+		if err != nil {
+			return err
+		}
 		fh.ForwardEventChan <- jsonCopy
 		fh.Lock.Lock()
 		fh.PerfStats.ForwardedPerSec++
@@ -199,6 +219,12 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 		return []string{"*"}
 	}
 	return util.GetAllowedTypes()
+}
+
+// EnableRDNS switches on reverse DNS enrichment for source and destination
+// IPs in outgoing EVE events.
+func (fh *ForwardHandler) EnableRDNS() {
+	fh.DoRDNS = true
 }
 
 // Run starts forwarding of JSON representations of all consumed events

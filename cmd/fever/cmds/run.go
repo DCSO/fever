@@ -179,6 +179,10 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		if pse != nil {
 			forwardHandler.(*processing.ForwardHandler).SubmitStats(pse)
 		}
+		rdns := viper.GetBool("active.rdns")
+		if rdns {
+			forwardHandler.(*processing.ForwardHandler).EnableRDNS()
+		}
 		forwardHandler.(*processing.ForwardHandler).Run()
 		defer func() {
 			c := make(chan bool)
@@ -563,6 +567,10 @@ func init() {
 	viper.BindPFlag("flowextract.submission-url", runCmd.PersistentFlags().Lookup("flowextract-submission-url"))
 	runCmd.PersistentFlags().StringP("flowextract-submission-exchange", "", "flows", "Exchange to which raw flow events will be submitted")
 	viper.BindPFlag("flowextract.submission-exchange", runCmd.PersistentFlags().Lookup("flowextract-submission-exchange"))
+
+	// Active enrichment options
+	runCmd.PersistentFlags().BoolP("active-rdns", "", false, "enable active rDNS enrichment for src/dst IPs")
+	viper.BindPFlag("active.rdns", runCmd.PersistentFlags().Lookup("active-rdns"))
 
 	// Logging options
 	runCmd.PersistentFlags().StringP("logfile", "", "", "Path to log file")

@@ -241,8 +241,10 @@ type EveEvent struct {
 	InIface          string         `json:"in_iface,omitempty"`
 	SrcIP            string         `json:"src_ip,omitempty"`
 	SrcPort          int            `json:"src_port,omitempty"`
+	SrcHost          []string       `json:"src_host,omitempty"`
 	DestIP           string         `json:"dest_ip,omitempty"`
 	DestPort         int            `json:"dest_port,omitempty"`
+	DestHost         []string       `json:"dest_host,omitempty"`
 	Proto            string         `json:"proto,omitempty"`
 	AppProto         string         `json:"app_proto,omitempty"`
 	TxID             int            `json:"tx_id,omitempty"`

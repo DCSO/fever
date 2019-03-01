@@ -172,7 +172,6 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 		ReconnectTimes:      reconnectTimes,
 		ReconnectNotifyChan: make(chan bool),
 		StopReconnectChan:   make(chan bool),
-		RDNSHandler:         MakeRDNSHandler(util.NewHostNamer(60*time.Second, 60*time.Second)),
 	}
 	return fh
 }
@@ -186,7 +185,7 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		if err != nil {
 			return err
 		}
-		if fh.DoRDNS {
+		if fh.DoRDNS && fh.RDNSHandler != nil {
 			err = fh.RDNSHandler.Consume(e)
 			if err != nil {
 				return err
@@ -223,8 +222,9 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 
 // EnableRDNS switches on reverse DNS enrichment for source and destination
 // IPs in outgoing EVE events.
-func (fh *ForwardHandler) EnableRDNS() {
+func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.DoRDNS = true
+	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamer(expiryPeriod, 2*expiryPeriod))
 }
 
 // Run starts forwarding of JSON representations of all consumed events

@@ -1,7 +1,7 @@
 package cmd
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, DCSO GmbH
+// Copyright (c) 2017, 2018, 2019, DCSO GmbH
 
 import (
 	"io"
@@ -181,7 +181,12 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		}
 		rdns := viper.GetBool("active.rdns")
 		if rdns {
-			forwardHandler.(*processing.ForwardHandler).EnableRDNS()
+			expiryPeriod := viper.GetDuration("active.rdns-cache-expiry")
+			forwardHandler.(*processing.ForwardHandler).EnableRDNS(expiryPeriod)
+			privateOnly := viper.GetBool("active.rdns-private-only")
+			if privateOnly {
+				forwardHandler.(*processing.ForwardHandler).RDNSHandler.EnableOnlyPrivateIPRanges()
+			}
 		}
 		forwardHandler.(*processing.ForwardHandler).Run()
 		defer func() {
@@ -571,6 +576,10 @@ func init() {
 	// Active enrichment options
 	runCmd.PersistentFlags().BoolP("active-rdns", "", false, "enable active rDNS enrichment for src/dst IPs")
 	viper.BindPFlag("active.rdns", runCmd.PersistentFlags().Lookup("active-rdns"))
+	runCmd.PersistentFlags().DurationP("active-rdns-cache-expiry", "", 2*time.Minute, "cache expiry interval for rDNS lookups")
+	viper.BindPFlag("active.rdns-cache-expiry", runCmd.PersistentFlags().Lookup("active-rdns-cache-expiry"))
+	runCmd.PersistentFlags().BoolP("active-rdns-private-only", "", false, "only do active rDNS enrichment for RFC1918 IPs")
+	viper.BindPFlag("active.rdns-private-only", runCmd.PersistentFlags().Lookup("active-rdns-private-only"))
 
 	// Logging options
 	runCmd.PersistentFlags().StringP("logfile", "", "", "Path to log file")

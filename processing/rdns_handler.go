@@ -38,8 +38,12 @@ func MakeRDNSHandler(hn *util.HostNamer) *RDNSHandler {
 		"10.0.0.0/8",
 		"172.16.0.0/12",
 		"192.168.0.0/16",
+		"fc00::/7",
 	} {
-		_, block, _ := net.ParseCIDR(cidr)
+		_, block, err := net.ParseCIDR(cidr)
+		if err != nil {
+			log.Fatalf("cannot parse fixed private IP range %v", cidr)
+		}
 		rh.PrivateRanges.Insert(cidranger.NewBasicRangerEntry(*block))
 	}
 	return rh

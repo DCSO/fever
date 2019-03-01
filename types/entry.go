@@ -15,8 +15,10 @@ type DNSAnswer struct {
 // Entry is a collection of data that needs to be parsed FAST from the entry
 type Entry struct {
 	SrcIP         string
+	SrcHosts      []string
 	SrcPort       int64
 	DestIP        string
+	DestHosts     []string
 	DestPort      int64
 	Timestamp     string
 	EventType     string

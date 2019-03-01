@@ -27,6 +27,10 @@ Usage:
   fever run [flags]
 
 Flags:
+      --active-rdns                              enable active rDNS enrichment for src/dst IPs
+      --active-rdns-cache-expiry duration        cache expiry interval for rDNS lookups (default 2m0s)
+      --active-rdns-private-only                 only do active rDNS enrichment for RFC1918 IPs
+      --bloom-alert-prefix string                String prefix for Bloom filter alerts (default "BLF")
   -b, --bloom-file string                        Bloom filter for external indicator screening
   -z, --bloom-zipped                             use gzipped Bloom filter file
   -c, --chunksize uint                           chunk size for batched event handling (e.g. inserts) (default 50000)
@@ -42,11 +46,11 @@ Flags:
       --flowextract-bloom-selector string        IP address Bloom filter to select flows to extract
       --flowextract-enable                       extract and forward flow metadata
       --flowextract-submission-exchange string   Exchange to which raw flow events will be submitted (default "flows")
-      --flowextract-submission-url string        URL to which raw flow events will be submitted
+      --flowextract-submission-url string        URL to which raw flow events will be submitted (default "amqp://guest:guest@localhost:5672/")
   -n, --flowreport-interval duration             time interval for report submissions
       --flowreport-nocompress                    send uncompressed flow reports (default is gzip)
       --flowreport-submission-exchange string    Exchange to which flow reports will be submitted (default "aggregations")
-      --flowreport-submission-url string         URL to which flow reports will be submitted
+      --flowreport-submission-url string         URL to which flow reports will be submitted (default "amqp://guest:guest@localhost:5672/")
       --flushcount uint                          maximum number of events in one batch (e.g. for flow extraction) (default 100000)
   -f, --flushtime duration                       time interval for event aggregation (default 1m0s)
   -T, --fwd-all-types                            forward all event types
@@ -55,17 +59,20 @@ Flags:
   -r, --in-redis string                          Redis input server (assumes "suricata" list key, no pwd)
       --in-redis-nopipe                          do not use Redis pipelining
   -i, --in-socket string                         filename of input socket (accepts EVE JSON) (default "/tmp/suri.sock")
+      --ip-alert-prefix string                   String prefix for IP blacklist alerts (default "IP-BLACKLIST")
+      --ip-blacklist string                      List with IP ranges to alert on
       --logfile string                           Path to log file
       --logjson                                  Output logs in JSON format
       --metrics-enable                           submit performance metrics to central sink
       --metrics-submission-exchange string       Exchange to which metrics will be submitted (default "metrics")
-      --metrics-submission-url string            URL to which metrics will be submitted
-  -o, --out-socket string                        path to output socket (to forwarder) (default "/tmp/suri-forward.sock")
+      --metrics-submission-url string            URL to which metrics will be submitted (default "amqp://guest:guest@localhost:5672/")
+  -o, --out-socket string                        path to output socket (to forwarder), empty string disables forwarding (default "/tmp/suri-forward.sock")
       --pdns-enable                              collect and forward aggregated passive DNS data
       --pdns-submission-exchange string          Exchange to which passive DNS events will be submitted (default "pdns")
-      --pdns-submission-url string               URL to which passive DNS events will be submitted
+      --pdns-submission-url string               URL to which passive DNS events will be submitted (default "amqp://guest:guest@localhost:5672/")
       --profile string                           enable runtime profiling to given file
       --reconnect-retries uint                   number of retries connecting to socket or sink, 0 = no retry limit
+      --toolname string                          set toolname (default "fever")
   -v, --verbose                                  enable verbose logging (debug log level)
 
 Global Flags:

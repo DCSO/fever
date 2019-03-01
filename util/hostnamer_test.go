@@ -1,0 +1,56 @@
+package util
+
+import (
+	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+func _TestHostNamerQuad8(t *testing.T, ip string) {
+	hn := NewHostNamer(5*time.Second, 5*time.Second)
+	v, err := hn.GetHostname(ip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v) == 0 {
+		t.Fatal("no response")
+	} else {
+		log.Debugf("got response %v", v)
+	}
+	v, err = hn.GetHostname(ip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v) == 0 {
+		t.Fatal("no response")
+	} else {
+		log.Debugf("got response %v", v)
+	}
+	time.Sleep(6 * time.Second)
+	v, err = hn.GetHostname(ip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(v) == 0 {
+		t.Fatal("no response")
+	} else {
+		log.Debugf("got response %v", v)
+	}
+}
+
+func TestHostNamerQuad8v4(t *testing.T) {
+	_TestHostNamerQuad8(t, "8.8.8.8")
+}
+
+func TestHostNamerQuad8v6(t *testing.T) {
+	_TestHostNamerQuad8(t, "2001:4860:4860::8888")
+}
+
+func TestHostNamerInvalid(t *testing.T) {
+	hn := NewHostNamer(5*time.Second, 5*time.Second)
+	_, err := hn.GetHostname("8.")
+	if err == nil {
+		t.Fatal("missed error")
+	}
+}

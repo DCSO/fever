@@ -92,6 +92,13 @@ flowextract:
 #  zipped: true
 #  alert-prefix: BLF
 
+# Configuration for active information gathering.
+active:
+  # Enable reverse DNS lookups for src/dst IPs.
+  rdns: false
+  rdns-private-only: true
+  rdns-cache-expiry: 120s
+
 logging:
   # Insert file name here to redirect logs to separate file.
   file: 

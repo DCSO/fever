@@ -239,22 +239,24 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 		}
 
 		a.Unlock()
-	}
-	if e.EventType == "dns" {
+	} else if e.EventType == "dns" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.DNSRRName)) {
 			var n types.Entry
 			if e.DNSType == "query" {
 				n = MakeAlertEntryForHit(*e, "dns-req", a.AlertPrefix, e.DNSRRName)
-			} else {
+			} else if e.DNSType == "answer" {
 				n = MakeAlertEntryForHit(*e, "dns-resp", a.AlertPrefix, e.DNSRRName)
+			} else {
+				log.Warnf("invalid DNS type: '%s'", e.DNSType)
+				a.Unlock()
+				return nil
 			}
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}
 		a.Unlock()
-	}
-	if e.EventType == "tls" {
+	} else if e.EventType == "tls" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.TLSSni)) {
 			n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix, e.TLSSni)

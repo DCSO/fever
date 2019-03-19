@@ -19,6 +19,7 @@ import (
 
 	"github.com/DCSO/bloom"
 	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 var (
@@ -762,5 +763,47 @@ func TestBloomHandlerURL(t *testing.T) {
 	if len(fwhandler.GetEntries()) != 0 {
 		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
 	}
+}
 
+func TestBloomHandlerInvalidDNS(t *testing.T) {
+	// make sure that alerts are forwarded
+	util.PrepareEventFilter([]string{"alert"}, false)
+
+	// initalize Bloom filter and fill with 'interesting' values
+	bf := bloom.Initialize(100000, 0.0000001)
+
+	// channel to receive events to be saved to database
+	dbChan := make(chan types.Entry)
+
+	// handler to receive forwarded events
+	fwhandler := &CollectorHandler{
+		Entries: make(map[string]bool),
+	}
+
+	// concurrently gather entries to be written to DB
+	dbWritten := make([]types.Entry, 0)
+	consumeWaitChan := make(chan bool)
+	go func() {
+		for e := range dbChan {
+			dbWritten = append(dbWritten, e)
+		}
+		close(consumeWaitChan)
+	}()
+
+	bh := MakeBloomHandler(&bf, dbChan, fwhandler, "FOO BAR")
+	e := makeBloomDNSEvent("foobar")
+	e.DNSType = "foobar"
+	bf.Add([]byte(e.DNSRRName))
+
+	hook := test.NewGlobal()
+
+	bh.Consume(&e)
+
+	entries := hook.AllEntries()
+	if len(entries) < 1 {
+		t.Fatal("missing log entries")
+	}
+	if entries[0].Message != "invalid DNS type: 'foobar'" {
+		t.Fatal("wrong log entry for invalid DNS type")
+	}
 }

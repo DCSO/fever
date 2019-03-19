@@ -22,7 +22,8 @@ var sigs = map[string]string{
 	"http-url":  "%s Possibly bad HTTP URL: ",
 	"http-host": "%s Possibly bad HTTP host: ",
 	"tls-sni":   "%s Possibly bad TLS SNI: ",
-	"dns":       "%s Possibly bad DNS lookup to ",
+	"dns-req":   "%s Possibly bad DNS lookup to ",
+	"dns-resp":  "%s Possibly bad DNS response for ",
 }
 
 // MakeAlertEntryForHit returns an alert Entry as raised by an external
@@ -41,7 +42,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc s
 			value = fmt.Sprintf("%s | %s | %s", e.HTTPMethod, e.HTTPHost, e.HTTPUrl)
 		} else if eType == "http-host" {
 			value = e.HTTPHost
-		} else if eType == "dns" {
+		} else if strings.HasPrefix(eType, "dns") {
 			value = e.DNSRRName
 		} else if eType == "tls-sni" {
 			value = e.TLSSni
@@ -242,7 +243,12 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 	if e.EventType == "dns" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.DNSRRName)) {
-			n := MakeAlertEntryForHit(*e, "dns", a.AlertPrefix, e.DNSRRName)
+			var n types.Entry
+			if e.DNSType == "query" {
+				n = MakeAlertEntryForHit(*e, "dns-req", a.AlertPrefix, e.DNSRRName)
+			} else {
+				n = MakeAlertEntryForHit(*e, "dns-resp", a.AlertPrefix, e.DNSRRName)
+			}
 			a.DatabaseEventChan <- n
 			a.ForwardHandler.Consume(&n)
 		}

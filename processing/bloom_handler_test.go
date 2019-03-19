@@ -24,7 +24,8 @@ import (
 var (
 	reHTTPURL  = regexp.MustCompile(`Possibly bad HTTP URL: [^ ]+ . ([^ ]+) . ([^" ]+)`)
 	reHTTPHost = regexp.MustCompile(`Possibly bad HTTP host: ([^" ]+)`)
-	reDNS      = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
+	reDNSReq   = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
+	reDNSRep   = regexp.MustCompile("Possibly bad DNS response for ([^\" ]+)")
 	reSNI      = regexp.MustCompile("Possibly bad TLS SNI: ([^\" ]+)")
 )
 
@@ -40,7 +41,8 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 		DNSRCode:  []string{"NOERROR", "NXDOMAIN"}[rand.Intn(2)],
 		DNSRData:  fmt.Sprintf("10.%d.0.%d", rand.Intn(50), rand.Intn(50)+100),
 		DNSRRName: rrname,
-		DNSRRType: "answer",
+		DNSRRType: "A",
+		DNSType:   []string{"answer", "query"}[rand.Intn(2)],
 	}
 	eve := types.EveEvent{
 		EventType: e.EventType,
@@ -54,6 +56,7 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 			Rrname: e.DNSRRName,
 			Rdata:  e.DNSRData,
 			Rrtype: e.DNSRRType,
+			Type:   e.DNSType,
 		},
 	}
 	json, err := json.Marshal(eve)
@@ -202,8 +205,29 @@ func (h *CollectorHandler) Consume(e *types.Entry) error {
 		h.Entries[host] = true
 		return nil
 	}
-	match = reDNS.FindStringSubmatch(e.JSONLine)
+	match = reDNSReq.FindStringSubmatch(e.JSONLine)
 	if match != nil {
+		var eve types.EveEvent
+		var err = json.Unmarshal([]byte(e.JSONLine), &eve)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if eve.DNS.Type != "query" {
+			log.Fatalf("request alert for type (%s) != query", eve.DNS.Type)
+		}
+		h.Entries[match[1]] = true
+		return nil
+	}
+	match = reDNSRep.FindStringSubmatch(e.JSONLine)
+	if match != nil {
+		var eve types.EveEvent
+		var err = json.Unmarshal([]byte(e.JSONLine), &eve)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if eve.DNS.Type != "answer" {
+			log.Fatalf("request alert for type (%s) != answer", eve.DNS.Type)
+		}
 		h.Entries[match[1]] = true
 		return nil
 	}

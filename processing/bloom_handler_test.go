@@ -19,12 +19,14 @@ import (
 
 	"github.com/DCSO/bloom"
 	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 var (
 	reHTTPURL  = regexp.MustCompile(`Possibly bad HTTP URL: [^ ]+ . ([^ ]+) . ([^" ]+)`)
 	reHTTPHost = regexp.MustCompile(`Possibly bad HTTP host: ([^" ]+)`)
-	reDNS      = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
+	reDNSReq   = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
+	reDNSRep   = regexp.MustCompile("Possibly bad DNS response for ([^\" ]+)")
 	reSNI      = regexp.MustCompile("Possibly bad TLS SNI: ([^\" ]+)")
 )
 
@@ -40,7 +42,8 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 		DNSRCode:  []string{"NOERROR", "NXDOMAIN"}[rand.Intn(2)],
 		DNSRData:  fmt.Sprintf("10.%d.0.%d", rand.Intn(50), rand.Intn(50)+100),
 		DNSRRName: rrname,
-		DNSRRType: "answer",
+		DNSRRType: "A",
+		DNSType:   []string{"answer", "query"}[rand.Intn(2)],
 	}
 	eve := types.EveEvent{
 		EventType: e.EventType,
@@ -54,6 +57,7 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 			Rrname: e.DNSRRName,
 			Rdata:  e.DNSRData,
 			Rrtype: e.DNSRRType,
+			Type:   e.DNSType,
 		},
 	}
 	json, err := json.Marshal(eve)
@@ -202,8 +206,29 @@ func (h *CollectorHandler) Consume(e *types.Entry) error {
 		h.Entries[host] = true
 		return nil
 	}
-	match = reDNS.FindStringSubmatch(e.JSONLine)
+	match = reDNSReq.FindStringSubmatch(e.JSONLine)
 	if match != nil {
+		var eve types.EveEvent
+		var err = json.Unmarshal([]byte(e.JSONLine), &eve)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if eve.DNS.Type != "query" {
+			log.Fatalf("request alert for type (%s) != query", eve.DNS.Type)
+		}
+		h.Entries[match[1]] = true
+		return nil
+	}
+	match = reDNSRep.FindStringSubmatch(e.JSONLine)
+	if match != nil {
+		var eve types.EveEvent
+		var err = json.Unmarshal([]byte(e.JSONLine), &eve)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if eve.DNS.Type != "answer" {
+			log.Fatalf("request alert for type (%s) != answer", eve.DNS.Type)
+		}
 		h.Entries[match[1]] = true
 		return nil
 	}
@@ -738,5 +763,47 @@ func TestBloomHandlerURL(t *testing.T) {
 	if len(fwhandler.GetEntries()) != 0 {
 		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
 	}
+}
 
+func TestBloomHandlerInvalidDNS(t *testing.T) {
+	// make sure that alerts are forwarded
+	util.PrepareEventFilter([]string{"alert"}, false)
+
+	// initalize Bloom filter and fill with 'interesting' values
+	bf := bloom.Initialize(100000, 0.0000001)
+
+	// channel to receive events to be saved to database
+	dbChan := make(chan types.Entry)
+
+	// handler to receive forwarded events
+	fwhandler := &CollectorHandler{
+		Entries: make(map[string]bool),
+	}
+
+	// concurrently gather entries to be written to DB
+	dbWritten := make([]types.Entry, 0)
+	consumeWaitChan := make(chan bool)
+	go func() {
+		for e := range dbChan {
+			dbWritten = append(dbWritten, e)
+		}
+		close(consumeWaitChan)
+	}()
+
+	bh := MakeBloomHandler(&bf, dbChan, fwhandler, "FOO BAR")
+	e := makeBloomDNSEvent("foobar")
+	e.DNSType = "foobar"
+	bf.Add([]byte(e.DNSRRName))
+
+	hook := test.NewGlobal()
+
+	bh.Consume(&e)
+
+	entries := hook.AllEntries()
+	if len(entries) < 1 {
+		t.Fatal("missing log entries")
+	}
+	if entries[0].Message != "invalid DNS type: 'foobar'" {
+		t.Fatal("wrong log entry for invalid DNS type")
+	}
 }

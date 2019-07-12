@@ -83,12 +83,12 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			metricsSubmissionExchange := viper.GetString("metrics.submission-exchange")
 			statssubmitter, err = util.MakeAMQPSubmitterWithReconnector(metricsSubmissionURL,
 				metricsSubmissionExchange,
-				verbose, func(amqpURI string) (wabbit.Conn, string, error) {
+				verbose, func(amqpURI string) (wabbit.Conn, error) {
 					conn, err := amqp.Dial(amqpURI)
 					if err != nil {
-						return nil, "topic", err
+						return nil, err
 					}
-					return conn, "topic", err
+					return conn, err
 				})
 			if err != nil {
 				log.Fatal(err)

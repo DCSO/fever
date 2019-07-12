@@ -1,7 +1,7 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, DCSO GmbH
+// Copyright (c) 2017, 2018, 2019, DCSO GmbH
 
 import (
 	"bytes"
@@ -15,41 +15,53 @@ import (
 	origamqp "github.com/streadway/amqp"
 )
 
-// AMQPSubmitter is a StatsSubmitter that sends reports to a RabbitMQ exchange.
-type AMQPSubmitter struct {
+// AMQPBaseSubmitter is the base engine that sends reports to a RabbitMQ host and
+// handles reconnection.
+type AMQPBaseSubmitter struct {
 	URL              string
 	Verbose          bool
 	SensorID         string
-	Target           string
 	Conn             wabbit.Conn
 	Channel          wabbit.Channel
 	StopReconnection chan bool
 	ErrorChan        chan wabbit.Error
 	Logger           *log.Entry
-	Compress         bool
 	ChanMutex        sync.Mutex
 	ConnMutex        sync.Mutex
-	Reconnector      func(string) (wabbit.Conn, string, error)
+	Reconnector      func(string) (wabbit.Conn, error)
+	NofSubmitters    uint
+}
+
+// AMQPSubmitter is a StatsSubmitter that sends reports to a RabbitMQ exchange.
+type AMQPSubmitter struct {
+	Submitter *AMQPBaseSubmitter
+	Target    string
+	Compress  bool
 }
 
 const (
-	amqpReconnDelay = 2 * time.Second
+	amqpReconnDelay = 5 * time.Second
 )
 
-func defaultReconnector(amqpURI string) (wabbit.Conn, string, error) {
+var (
+	gSubmitters = make(map[string]*AMQPBaseSubmitter)
+)
+
+func defaultReconnector(amqpURI string) (wabbit.Conn, error) {
 	conn, err := amqp.Dial(amqpURI)
 	if err != nil {
-		return nil, "fanout", err
+		return nil, err
 	}
-	return conn, "fanout", err
+	return conn, err
 }
 
-func reconnectOnFailure(s *AMQPSubmitter) {
+func reconnectOnFailure(s *AMQPBaseSubmitter) {
+	errChan := s.ErrorChan
 	for {
 		select {
 		case <-s.StopReconnection:
 			return
-		case rabbitErr := <-s.ErrorChan:
+		case rabbitErr := <-errChan:
 			if rabbitErr != nil {
 				log.Warnf("RabbitMQ connection failed: %s", rabbitErr.Reason())
 				s.ChanMutex.Lock()
@@ -60,7 +72,9 @@ func reconnectOnFailure(s *AMQPSubmitter) {
 						log.Warnf("RabbitMQ error: %s", connErr)
 					} else {
 						log.Infof("Reestablished connection to %s", s.URL)
-						s.Conn.NotifyClose(s.ErrorChan)
+						errChan = make(chan wabbit.Error)
+						s.Conn.NotifyClose(errChan)
+						s.ErrorChan = errChan
 						break
 					}
 				}
@@ -70,36 +84,18 @@ func reconnectOnFailure(s *AMQPSubmitter) {
 	}
 }
 
-func (s *AMQPSubmitter) connect() error {
+func (s *AMQPBaseSubmitter) connect() error {
 	var err error
-	var exchangeType string
 
 	s.ConnMutex.Lock()
-	s.Conn, exchangeType, err = s.Reconnector(s.URL)
+	s.Logger.Debugf("calling reconnector")
+	s.Conn, err = s.Reconnector(s.URL)
 	if err != nil {
 		s.Conn = nil
 		s.ConnMutex.Unlock()
 		return err
 	}
 	s.Channel, err = s.Conn.Channel()
-	if err != nil {
-		s.Conn.Close()
-		s.ConnMutex.Unlock()
-		return err
-	}
-	// We do not want to declare an exchange on non-default connection methods,
-	// as they may not support all exchange types. For instance amqptest does
-	// not support 'fanout'.
-	err = s.Channel.ExchangeDeclare(
-		s.Target,     // name
-		exchangeType, // type
-		wabbit.Option{
-			"durable":    true,
-			"autoDelete": false,
-			"internal":   false,
-			"noWait":     false,
-		},
-	)
 	if err != nil {
 		s.Conn.Close()
 		s.ConnMutex.Unlock()
@@ -115,34 +111,47 @@ func (s *AMQPSubmitter) connect() error {
 // RabbitMQ server at the given URL, using the reconnector function as a means
 // to Dial() in order to obtain a Connection object.
 func MakeAMQPSubmitterWithReconnector(url string, target string, verbose bool,
-	reconnector func(string) (wabbit.Conn, string, error)) (*AMQPSubmitter, error) {
+	reconnector func(string) (wabbit.Conn, error)) (*AMQPSubmitter, error) {
 	var err error
-	mySubmitter := &AMQPSubmitter{
-		URL:              url,
-		Target:           target,
-		Verbose:          verbose,
-		ErrorChan:        make(chan wabbit.Error),
-		Reconnector:      reconnector,
-		Compress:         false,
-		StopReconnection: make(chan bool),
-	}
-	mySubmitter.Logger = log.WithFields(log.Fields{
-		"domain":    "submitter",
-		"submitter": "AMQP",
-	})
-	mySubmitter.SensorID, err = GetSensorID()
-	if err != nil {
-		return nil, err
-	}
-	err = mySubmitter.connect()
-	if err != nil {
-		return nil, err
-	}
-	mySubmitter.Conn.NotifyClose(mySubmitter.ErrorChan)
+	var mySubmitter *AMQPBaseSubmitter
+	if _, ok := gSubmitters[url]; !ok {
 
-	go reconnectOnFailure(mySubmitter)
+		mySubmitter = &AMQPBaseSubmitter{
+			URL:              url,
+			Verbose:          verbose,
+			ErrorChan:        make(chan wabbit.Error),
+			Reconnector:      reconnector,
+			StopReconnection: make(chan bool),
+		}
+		mySubmitter.Logger = log.WithFields(log.Fields{
+			"domain":    "submitter",
+			"submitter": "AMQP",
+			"url":       url,
+		})
+		mySubmitter.Logger.Debugf("new base submitter created")
+		mySubmitter.SensorID, err = GetSensorID()
+		if err != nil {
+			return nil, err
+		}
+		err = mySubmitter.connect()
+		if err != nil {
+			return nil, err
+		}
 
-	return mySubmitter, nil
+		mySubmitter.Conn.NotifyClose(mySubmitter.ErrorChan)
+		go reconnectOnFailure(mySubmitter)
+
+		gSubmitters[url] = mySubmitter
+		mySubmitter.NofSubmitters++
+		mySubmitter.Logger.Debugf("number of submitters now %v", mySubmitter.NofSubmitters)
+	} else {
+		mySubmitter = gSubmitters[url]
+	}
+	retSubmitter := &AMQPSubmitter{
+		Submitter: mySubmitter,
+		Target:    target,
+	}
+	return retSubmitter, nil
 }
 
 // MakeAMQPSubmitter creates a new submitter connected to a RabbitMQ server
@@ -185,7 +194,7 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 		"contentType":     contentType,
 		"contentEncoding": encoding,
 		"headers": origamqp.Table{
-			"sensor_id":  s.SensorID,
+			"sensor_id":  s.Submitter.SensorID,
 			"compressed": isCompressed,
 		},
 	}
@@ -193,33 +202,40 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 		option["headers"].(origamqp.Table)[k] = v
 	}
 
-	err := s.Channel.Publish(
+	err := s.Submitter.Channel.Publish(
 		s.Target, // exchange
 		key,      // routing key
 		payload,
 		option)
 	if err != nil {
-		s.Logger.Warn(err)
+		s.Submitter.Logger.Warn(err)
 	} else {
-		s.Logger.WithFields(log.Fields{
+		s.Submitter.Logger.WithFields(log.Fields{
 			"rawsize":     len(rawData),
 			"payloadsize": len(payload),
-		}).Infof("submission to %s (%s) successful", s.Target, key)
+		}).Infof("submission to %s:%s (%s) successful", s.Submitter.URL, s.Target, key)
 	}
 }
 
-// Finish cleans up the AMQP connection.
+// Finish cleans up the AMQP connection (reference counted).
 func (s *AMQPSubmitter) Finish() {
-	close(s.StopReconnection)
-	if s.Verbose {
-		s.Logger.Info("closing connection")
+	s.Submitter.Logger.Debugf("finishing submitter %v -> %v", s, s.Submitter)
+	if s.Submitter.NofSubmitters == 1 {
+		close(s.Submitter.StopReconnection)
+		if s.Submitter.Verbose {
+			s.Submitter.Logger.Info("closing connection")
+		}
+		if s.Submitter.Channel != nil {
+			s.Submitter.Channel.Close()
+		}
+		s.Submitter.ConnMutex.Lock()
+		if s.Submitter.Conn != nil {
+			s.Submitter.Conn.Close()
+		}
+		s.Submitter.ConnMutex.Unlock()
+		delete(gSubmitters, s.Submitter.URL)
+	} else {
+		s.Submitter.NofSubmitters--
+		s.Submitter.Logger.Debugf("number of submitters now %v", s.Submitter.NofSubmitters)
 	}
-	if s.Channel != nil {
-		s.Channel.Close()
-	}
-	s.ConnMutex.Lock()
-	if s.Conn != nil {
-		s.Conn.Close()
-	}
-	s.ConnMutex.Unlock()
 }

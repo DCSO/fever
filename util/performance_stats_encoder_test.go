@@ -57,11 +57,11 @@ func TestPerformanceStatsEncoderEmpty(t *testing.T) {
 
 	// set up submitter
 	statssubmitter, err := MakeAMQPSubmitterWithReconnector(serverURL,
-		"tdh.metrics", true, func(url string) (wabbit.Conn, string, error) {
+		"tdh.metrics", true, func(url string) (wabbit.Conn, error) {
 			// we pass in a custom reconnector which uses the amqptest implementation
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -105,11 +105,11 @@ func TestPerformanceStatsEncoder(t *testing.T) {
 
 	// set up submitter
 	statssubmitter, err := MakeAMQPSubmitterWithReconnector(serverURL,
-		"tdh.metrics", true, func(url string) (wabbit.Conn, string, error) {
+		"tdh.metrics", true, func(url string) (wabbit.Conn, error) {
 			// we pass in a custom reconnector which uses the amqptest implementation
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)

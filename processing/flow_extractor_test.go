@@ -88,10 +88,10 @@ func TestFlowExtractor(t *testing.T) {
 
 	// set up submitter
 	submitter, err := util.MakeAMQPSubmitterWithReconnector(serverURL,
-		"tdh.flows", true, func(url string) (wabbit.Conn, string, error) {
+		"tdh.flows", true, func(url string) (wabbit.Conn, error) {
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)

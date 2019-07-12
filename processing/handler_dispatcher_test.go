@@ -139,11 +139,11 @@ func TestHandlerDispatcherMonitoring(t *testing.T) {
 
 	// set up submitter
 	statssubmitter, err := util.MakeAMQPSubmitterWithReconnector(serverURL,
-		"nsm.test.metrics", true, func(url string) (wabbit.Conn, string, error) {
+		"nsm.test.metrics", true, func(url string) (wabbit.Conn, error) {
 			// we pass in a custom reconnector which uses the amqptest implementation
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)

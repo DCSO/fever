@@ -19,8 +19,8 @@ import (
 func TestInvalidReconnector(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	submitter, err := MakeAMQPSubmitterWithReconnector("amqp://sensor:sensor@localhost:9999/%2f",
-		"foo.bar.test", true, func(url string) (wabbit.Conn, string, error) {
-			return nil, "", fmt.Errorf("error")
+		"foo.bar.test", true, func(url string) (wabbit.Conn, error) {
+			return nil, fmt.Errorf("error")
 		})
 	if submitter != nil || err == nil {
 		t.Fail()
@@ -51,11 +51,11 @@ func TestSubmitter(t *testing.T) {
 
 	// set up submitter
 	submitter, err := MakeAMQPSubmitterWithReconnector(serverURL,
-		"foo.bar.test", true, func(url string) (wabbit.Conn, string, error) {
+		"foo.bar.test", true, func(url string) (wabbit.Conn, error) {
 			// we pass in a custom reconnector which uses the amqptest implementation
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -106,11 +106,11 @@ func TestSubmitterReconnect(t *testing.T) {
 
 	// set up submitter
 	submitter, err := MakeAMQPSubmitterWithReconnector(serverURL,
-		"foo.bar.test", true, func(url string) (wabbit.Conn, string, error) {
+		"foo.bar.test", true, func(url string) (wabbit.Conn, error) {
 			// we pass in a custom reconnector which uses the amqptest implementation
 			var conn wabbit.Conn
 			conn, err = amqptest.Dial(url)
-			return conn, "direct", err
+			return conn, err
 		})
 	if err != nil {
 		t.Fatal(err)

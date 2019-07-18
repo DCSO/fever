@@ -91,6 +91,10 @@ flowextract:
 #  file: ./in.bloom.gz
 #  zipped: true
 #  alert-prefix: BLF
+#  blacklist-iocs:
+#    - /
+#    - /index.htm
+#    - /index.html
 
 # Configuration for active information gathering.
 active:

@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -103,6 +103,7 @@ type BloomHandler struct {
 	ForwardHandler        Handler
 	DoForwardAlert        bool
 	AlertPrefix           string
+	BlacklistIOCs         []string
 }
 
 // BloomNoFileErr is an error thrown when a file-based operation (e.g.
@@ -131,17 +132,29 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 		ForwardHandler:    forwardHandler,
 		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
 		AlertPrefix:       alertPrefix,
+		BlacklistIOCs:     make([]string, 0),
 	}
 	log.WithFields(log.Fields{
-		"N": iocBloom.N,
+		"N":      iocBloom.N,
+		"domain": "bloom",
 	}).Info("Bloom filter loaded")
 	return bh
+}
+
+func checkBlacklisted(iocBloom *bloom.BloomFilter, blacklistedIOCs []string) error {
+	for _, v := range blacklistedIOCs {
+		if iocBloom.Check([]byte(v)) {
+			return fmt.Errorf("filter contains blacklisted indicator '%s'", v)
+		}
+	}
+	return nil
 }
 
 // MakeBloomHandlerFromFile returns a new BloomHandler created from a new
 // Bloom filter specified by the given file name.
 func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
-	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string) (*BloomHandler, error) {
+	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string,
+	blacklistIOCs []string) (*BloomHandler, error) {
 	iocBloom, err := bloom.LoadFilter(bloomFilename, compressed)
 	if err != nil {
 		if err == io.EOF {
@@ -156,7 +169,15 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 			return nil, err
 		}
 	}
+	log.WithFields(log.Fields{
+		"domain": "bloom",
+	}).Infof("loading Bloom filter '%s'", bloomFilename)
 	bh := MakeBloomHandler(iocBloom, databaseChan, forwardHandler, alertPrefix)
+	err = checkBlacklisted(iocBloom, blacklistIOCs)
+	if err != nil {
+		return nil, err
+	}
+	bh.BlacklistIOCs = blacklistIOCs
 	bh.BloomFilename = bloomFilename
 	bh.BloomFileIsCompressed = compressed
 	return bh, nil
@@ -180,6 +201,10 @@ func (a *BloomHandler) Reload() error {
 		} else {
 			return err
 		}
+	}
+	err = checkBlacklisted(iocBloom, a.BlacklistIOCs)
+	if err != nil {
+		return err
 	}
 	a.Lock()
 	a.IocBloom = iocBloom

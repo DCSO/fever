@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, DCSO GmbH
+// Copyright (c) 2017, 2018, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -413,7 +413,7 @@ func TestBloomHandlerFromFile(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	bh, err := MakeBloomHandlerFromFile(b1File.Name(), false, dbChan, fwhandler, "FOO BAR")
+	bh, err := MakeBloomHandlerFromFile(b1File.Name(), false, dbChan, fwhandler, "FOO BAR", []string{"/"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,12 +482,65 @@ func TestBloomHandlerEmptyInput(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	bf, err := MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil, "FOO BAR")
+	bf, err := MakeBloomHandlerFromFile(blFile.Name(), false, dbChan, nil, "FOO BAR", []string{"/"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bf == nil {
 		t.Fatal("bloom filter should not be nil for empty file")
+	}
+}
+
+func TestBloomHandlerBlacklistedInputFromFile(t *testing.T) {
+	b1 := bloom.Initialize(1000, 0.0001)
+	b1.Add([]byte("/"))
+	b1File, err := ioutil.TempFile("", "blist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(b1File.Name())
+	b1.Write(b1File)
+	b1File.Close()
+
+	b2 := bloom.Initialize(1000, 0.0001)
+	b2.Add([]byte("/foobarbaz"))
+
+	dbChan := make(chan types.Entry, 10)
+	defer close(dbChan)
+
+	bf, err := MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
+	if err == nil || bf != nil {
+		t.Fatal(err)
+	} else {
+		log.Info(err)
+	}
+
+	b2File, err := os.OpenFile(b1File.Name(), os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b2.Write(b2File)
+	b2File.Close()
+
+	bf, err = MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		log.Info(err)
+	}
+
+	b2File, err = os.OpenFile(b1File.Name(), os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b1.Write(b2File)
+	b2File.Close()
+
+	err = bf.Reload()
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		log.Info(err)
 	}
 }
 

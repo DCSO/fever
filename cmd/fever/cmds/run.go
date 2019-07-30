@@ -204,9 +204,12 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	bloomFilePath := viper.GetString("bloom.file")
 	bloomAlertPrefix := viper.GetString("bloom.alert-prefix")
 	bloomCompressed := viper.GetBool("bloom.zipped")
+	bloomBlacklist := viper.GetStringSlice("bloom.blacklist-iocs")
 	var bloomHandler *processing.BloomHandler
 	if bloomFilePath != "" {
-		bloomHandler, err = processing.MakeBloomHandlerFromFile(bloomFilePath, bloomCompressed, eventChan, forwardHandler, bloomAlertPrefix)
+		bloomHandler, err = processing.MakeBloomHandlerFromFile(bloomFilePath,
+			bloomCompressed, eventChan, forwardHandler, bloomAlertPrefix,
+			bloomBlacklist)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -556,6 +559,8 @@ func init() {
 	viper.BindPFlag("bloom.zipped", runCmd.PersistentFlags().Lookup("bloom-zipped"))
 	runCmd.PersistentFlags().StringP("bloom-alert-prefix", "", "BLF", "String prefix for Bloom filter alerts")
 	viper.BindPFlag("bloom.alert-prefix", runCmd.PersistentFlags().Lookup("bloom-alert-prefix"))
+	runCmd.PersistentFlags().StringSliceP("bloom-blacklist-iocs", "", []string{"/", "/index.htm", "/index.html"}, "Blacklisted strings in Bloom filter (will cause filter to be rejected)")
+	viper.BindPFlag("bloom.blacklist-iocs", runCmd.PersistentFlags().Lookup("bloom-blacklist-iocs"))
 
 	// IP blacklist alerting options
 	runCmd.PersistentFlags().StringP("ip-blacklist", "", "", "List with IP ranges to alert on")

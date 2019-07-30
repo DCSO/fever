@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -103,6 +103,7 @@ type BloomHandler struct {
 	ForwardHandler        Handler
 	DoForwardAlert        bool
 	AlertPrefix           string
+	BlacklistIOCs         map[string]struct{}
 }
 
 // BloomNoFileErr is an error thrown when a file-based operation (e.g.
@@ -131,9 +132,11 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 		ForwardHandler:    forwardHandler,
 		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
 		AlertPrefix:       alertPrefix,
+		BlacklistIOCs:     make(map[string]struct{}),
 	}
 	log.WithFields(log.Fields{
-		"N": iocBloom.N,
+		"N":      iocBloom.N,
+		"domain": "bloom",
 	}).Info("Bloom filter loaded")
 	return bh
 }
@@ -141,7 +144,11 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 // MakeBloomHandlerFromFile returns a new BloomHandler created from a new
 // Bloom filter specified by the given file name.
 func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
-	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string) (*BloomHandler, error) {
+	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string,
+	blacklistIOCs []string) (*BloomHandler, error) {
+	log.WithFields(log.Fields{
+		"domain": "bloom",
+	}).Infof("loading Bloom filter '%s'", bloomFilename)
 	iocBloom, err := bloom.LoadFilter(bloomFilename, compressed)
 	if err != nil {
 		if err == io.EOF {
@@ -157,8 +164,15 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 		}
 	}
 	bh := MakeBloomHandler(iocBloom, databaseChan, forwardHandler, alertPrefix)
+	for _, v := range blacklistIOCs {
+		if bh.IocBloom.Check([]byte(v)) {
+			bh.Logger.Warnf("filter contains blacklisted indicator '%s'", v)
+		}
+		bh.BlacklistIOCs[v] = struct{}{}
+	}
 	bh.BloomFilename = bloomFilename
 	bh.BloomFileIsCompressed = compressed
+	bh.Logger.Info("filter loaded successfully", bloomFilename)
 	return bh, nil
 }
 
@@ -183,6 +197,11 @@ func (a *BloomHandler) Reload() error {
 	}
 	a.Lock()
 	a.IocBloom = iocBloom
+	for k := range a.BlacklistIOCs {
+		if a.IocBloom.Check([]byte(k)) {
+			a.Logger.Warnf("filter contains blacklisted indicator '%s'", k)
+		}
+	}
 	a.Unlock()
 	log.WithFields(log.Fields{
 		"N": iocBloom.N,
@@ -197,9 +216,11 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 		a.Lock()
 		// check HTTP host first: foo.bar.de
 		if a.IocBloom.Check([]byte(e.HTTPHost)) {
-			n := MakeAlertEntryForHit(*e, "http-host", a.AlertPrefix, e.HTTPHost)
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
+			if _, present := a.BlacklistIOCs[e.HTTPHost]; !present {
+				n := MakeAlertEntryForHit(*e, "http-host", a.AlertPrefix, e.HTTPHost)
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
+			}
 		}
 		// we sometimes see full 'URLs' in the corresponding EVE field when
 		// observing requests via proxies. In this case there is no need to
@@ -219,49 +240,60 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 			return nil
 		}
 
+		hostPath := fmt.Sprintf("%s%s", u.Host, u.Path)
 		// http://foo.bar.de:123/baz
 		if a.IocBloom.Check([]byte(fullURL)) {
-			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, fullURL)
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
+			if _, present := a.BlacklistIOCs[fullURL]; !present {
+				n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, fullURL)
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
+			}
 		} else
 		// foo.bar.de:123/baz
-		if a.IocBloom.Check([]byte(fmt.Sprintf("%s%s", u.Host, u.Path))) {
-			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, fmt.Sprintf("%s%s", u.Host, u.Path))
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
+		if a.IocBloom.Check([]byte(hostPath)) {
+			if _, present := a.BlacklistIOCs[hostPath]; !present {
+				n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, hostPath)
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
+			}
 		} else
 		// /baz
 		if a.IocBloom.Check([]byte(u.Path)) {
-			n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, u.Path)
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
+			if _, present := a.BlacklistIOCs[u.Path]; !present {
+				n := MakeAlertEntryForHit(*e, "http-url", a.AlertPrefix, u.Path)
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
+			}
 		}
 
 		a.Unlock()
 	} else if e.EventType == "dns" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.DNSRRName)) {
-			var n types.Entry
-			if e.DNSType == "query" {
-				n = MakeAlertEntryForHit(*e, "dns-req", a.AlertPrefix, e.DNSRRName)
-			} else if e.DNSType == "answer" {
-				n = MakeAlertEntryForHit(*e, "dns-resp", a.AlertPrefix, e.DNSRRName)
-			} else {
-				log.Warnf("invalid DNS type: '%s'", e.DNSType)
-				a.Unlock()
-				return nil
+			if _, present := a.BlacklistIOCs[e.DNSRRName]; !present {
+				var n types.Entry
+				if e.DNSType == "query" {
+					n = MakeAlertEntryForHit(*e, "dns-req", a.AlertPrefix, e.DNSRRName)
+				} else if e.DNSType == "answer" {
+					n = MakeAlertEntryForHit(*e, "dns-resp", a.AlertPrefix, e.DNSRRName)
+				} else {
+					log.Warnf("invalid DNS type: '%s'", e.DNSType)
+					a.Unlock()
+					return nil
+				}
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
 			}
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
 		}
 		a.Unlock()
 	} else if e.EventType == "tls" {
 		a.Lock()
 		if a.IocBloom.Check([]byte(e.TLSSni)) {
-			n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix, e.TLSSni)
-			a.DatabaseEventChan <- n
-			a.ForwardHandler.Consume(&n)
+			if _, present := a.BlacklistIOCs[e.TLSSni]; !present {
+				n := MakeAlertEntryForHit(*e, "tls-sni", a.AlertPrefix, e.TLSSni)
+				a.DatabaseEventChan <- n
+				a.ForwardHandler.Consume(&n)
+			}
 		}
 		a.Unlock()
 	}

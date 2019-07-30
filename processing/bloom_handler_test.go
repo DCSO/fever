@@ -508,11 +508,17 @@ func TestBloomHandlerBlacklistedInputFromFile(t *testing.T) {
 	dbChan := make(chan types.Entry, 10)
 	defer close(dbChan)
 
-	bf, err := MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
-	if err == nil || bf != nil {
+	hook := test.NewGlobal()
+	_, err = MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
+	if err != nil {
 		t.Fatal(err)
-	} else {
-		log.Info(err)
+	}
+	entries := hook.AllEntries()
+	if len(entries) != 4 {
+		t.Fatal("missing log entries")
+	}
+	if entries[2].Message != "filter contains blacklisted indicator '/'" {
+		t.Fatal("wrong log entry for invalid IP range")
 	}
 
 	b2File, err := os.OpenFile(b1File.Name(), os.O_RDWR|os.O_CREATE, 0755)
@@ -522,11 +528,9 @@ func TestBloomHandlerBlacklistedInputFromFile(t *testing.T) {
 	b2.Write(b2File)
 	b2File.Close()
 
-	bf, err = MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
+	bf, err := MakeBloomHandlerFromFile(b1File.Name(), false, nil, nil, "FOO BAR", []string{"/"})
 	if err != nil {
 		t.Fatal(err)
-	} else {
-		log.Info(err)
 	}
 
 	b2File, err = os.OpenFile(b1File.Name(), os.O_RDWR|os.O_CREATE, 0755)
@@ -536,11 +540,17 @@ func TestBloomHandlerBlacklistedInputFromFile(t *testing.T) {
 	b1.Write(b2File)
 	b2File.Close()
 
+	hook.Reset()
 	err = bf.Reload()
-	if err == nil {
+	if err != nil {
 		t.Fatal(err)
-	} else {
-		log.Info(err)
+	}
+	entries = hook.AllEntries()
+	if len(entries) != 2 {
+		t.Fatal("missing log entries")
+	}
+	if entries[0].Message != "filter contains blacklisted indicator '/'" {
+		t.Fatal("wrong log entry for invalid IP range")
 	}
 }
 
@@ -815,6 +825,119 @@ func TestBloomHandlerURL(t *testing.T) {
 
 	if len(fwhandler.GetEntries()) != 0 {
 		t.Fatalf("too many alerts: %d", len(fwhandler.GetEntries()))
+	}
+}
+
+func TestBloomHandlerBlacklistedSkip(t *testing.T) {
+	e1 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "http://foo.bar.de/oddlyspecific",
+		HTTPMethod: "GET",
+	}
+	eve1 := types.EveEvent{
+		EventType: e1.EventType,
+		SrcIP:     e1.SrcIP,
+		SrcPort:   int(e1.SrcPort),
+		DestIP:    e1.DestIP,
+		DestPort:  int(e1.DestPort),
+		Proto:     e1.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e1.HTTPHost,
+			URL:      e1.HTTPUrl,
+		},
+	}
+	json1, err := json.Marshal(eve1)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e1.JSONLine = string(json1)
+	}
+	e2 := types.Entry{
+		SrcIP:      "10.0.0.1",
+		SrcPort:    23545,
+		DestIP:     "10.0.0.2",
+		DestPort:   80,
+		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		EventType:  "http",
+		Proto:      "TCP",
+		HTTPHost:   "foo.bar.de",
+		HTTPUrl:    "/",
+		HTTPMethod: "GET",
+	}
+	eve2 := types.EveEvent{
+		EventType: e2.EventType,
+		SrcIP:     e2.SrcIP,
+		SrcPort:   int(e2.SrcPort),
+		DestIP:    e2.DestIP,
+		DestPort:  int(e2.DestPort),
+		Proto:     e2.Proto,
+		HTTP: &types.HTTPEvent{
+			Hostname: e2.HTTPHost,
+			URL:      e2.HTTPUrl,
+		},
+	}
+	json2, err := json.Marshal(eve2)
+	if err != nil {
+		log.Warn(err)
+	} else {
+		e2.JSONLine = string(json2)
+	}
+
+	b1 := bloom.Initialize(1000, 0.0001)
+	b1.Add([]byte("/oddlyspecific"))
+	b1.Add([]byte("/"))
+	b1File, err := ioutil.TempFile("", "blist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(b1File.Name())
+	b1.Write(b1File)
+	b1File.Close()
+
+	dbChan := make(chan types.Entry, 5)
+	dbWritten := make([]types.Entry, 0)
+	consumeWaitChan := make(chan bool)
+	go func() {
+		for e := range dbChan {
+			dbWritten = append(dbWritten, e)
+		}
+		close(consumeWaitChan)
+	}()
+
+	util.PrepareEventFilter([]string{"alert"}, false)
+
+	// handler to receive forwarded events
+	fwhandler := &CollectorHandler{
+		Entries: make(map[string]bool),
+	}
+
+	bh, err := MakeBloomHandlerFromFile(b1File.Name(), false, dbChan, fwhandler, "FOO BAR", []string{"/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bh.Consume(&e1)
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
+	}
+
+	fwhandler.Reset()
+	bh.Consume(&e2)
+
+	if len(fwhandler.GetEntries()) != 0 {
+		t.Fatalf("should not create alert but got %d", len(fwhandler.GetEntries()))
+	}
+
+	bh.Consume(&e1)
+	if len(fwhandler.GetEntries()) != 1 {
+		t.Fatalf("not enough alerts: %d", len(fwhandler.GetEntries()))
 	}
 }
 

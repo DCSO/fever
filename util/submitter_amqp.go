@@ -143,7 +143,7 @@ func MakeAMQPSubmitterWithReconnector(url string, target string, verbose bool,
 
 		gSubmitters[url] = mySubmitter
 		mySubmitter.NofSubmitters++
-		mySubmitter.Logger.Debugf("number of submitters now %v", mySubmitter.NofSubmitters)
+		mySubmitter.Logger.Debugf("number of submitters now %d", mySubmitter.NofSubmitters)
 	} else {
 		mySubmitter = gSubmitters[url]
 	}
@@ -236,6 +236,6 @@ func (s *AMQPSubmitter) Finish() {
 		delete(gSubmitters, s.Submitter.URL)
 	} else {
 		s.Submitter.NofSubmitters--
-		s.Submitter.Logger.Debugf("number of submitters now %v", s.Submitter.NofSubmitters)
+		s.Submitter.Logger.Debugf("number of submitters now %d", s.Submitter.NofSubmitters)
 	}
 }

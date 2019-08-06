@@ -23,6 +23,10 @@ func (t *suriTime) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+func (t *suriTime) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + t.Time.Format(SuricataTimestampFormat) + "\""), nil
+}
+
 // AlertEvent is am alert sub-object of an EVE entry.
 type AlertEvent struct {
 	Action      string `json:"action"`

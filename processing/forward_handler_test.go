@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,8 +53,7 @@ func makeEvent(eType string, tag string) types.Entry {
 }
 
 func consumeSocket(inputListener net.Listener, stopChan chan bool,
-	stoppedChan chan bool, t *testing.T, coll *[]string, toBeConsumed int) {
-	consumed := 0
+	stoppedChan chan bool, t *testing.T, coll *[]string, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-stopChan:
@@ -78,18 +78,13 @@ func consumeSocket(inputListener net.Listener, stopChan chan bool,
 					return
 				default:
 					line, isPrefix, rerr := reader.ReadLine()
-					if consumed == toBeConsumed {
-						inputListener.Close()
-						close(stoppedChan)
-						return
-					}
 					if rerr == nil || rerr != io.EOF {
 						if isPrefix {
 							t.Log("incomplete line read from input")
 							continue
 						} else {
 							*coll = append(*coll, string(line))
-							consumed++
+							wg.Done()
 						}
 					}
 				}
@@ -122,7 +117,9 @@ func TestForwardHandler(t *testing.T) {
 	cldCh := make(chan bool)
 
 	// start socket consumer
-	go consumeSocket(inputListener, clCh, cldCh, t, &coll, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
 
 	// start forwarding handler
 	fh := MakeForwardHandler(5, tmpfn)
@@ -139,8 +136,6 @@ func TestForwardHandler(t *testing.T) {
 		t.Fatal("Forwarding handler has wrong name")
 	}
 
-	time.Sleep(1 * time.Second)
-
 	e := makeEvent("alert", "foo1")
 	fh.Consume(&e)
 	e = makeEvent("http", "foo2")
@@ -154,10 +149,10 @@ func TestForwardHandler(t *testing.T) {
 	<-scChan
 
 	// wait for socket consumer to receive all
-	<-cldCh
+	wg.Wait()
 
 	if len(coll) != 2 {
-		t.Fatalf("unexpected number of alerts: %d", len(coll))
+		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
 	}
 
 	var eve types.EveEvent
@@ -201,7 +196,9 @@ func TestForwardAllHandler(t *testing.T) {
 	cldCh := make(chan bool)
 
 	// start socket consumer
-	go consumeSocket(inputListener, clCh, cldCh, t, &coll, 3)
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
 
 	// start forwarding handler
 	fh := MakeForwardHandler(5, tmpfn)
@@ -218,8 +215,6 @@ func TestForwardAllHandler(t *testing.T) {
 		t.Fatal("Forwarding handler has wrong name")
 	}
 
-	time.Sleep(1 * time.Second)
-
 	e := makeEvent("alert", "foo1")
 	fh.Consume(&e)
 	e = makeEvent("http", "foo2")
@@ -235,10 +230,10 @@ func TestForwardAllHandler(t *testing.T) {
 	// stop socket consumer
 	inputListener.Close()
 	close(clCh)
-	<-cldCh
+	wg.Wait()
 
 	if len(coll) != 3 {
-		t.Fatal("unexpected number of alerts")
+		t.Fatalf("unexpected number of alerts: %d != 3", len(coll))
 	}
 	var eve types.EveEvent
 	err = json.Unmarshal([]byte(coll[0]), &eve)

@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -180,7 +180,7 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 func (fh *ForwardHandler) Consume(e *types.Entry) error {
 	doForwardThis := util.ForwardAllEvents || util.AllowType(e.EventType)
 	if doForwardThis {
-		var ev types.EveEvent
+		var ev types.EveOutEvent
 		err := json.Unmarshal([]byte(e.JSONLine), &ev)
 		if err != nil {
 			return err

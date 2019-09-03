@@ -14,12 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	// ContextCollectorDefaultTTL is the default time after which a Context
-	// in the cache will be expired.
-	ContextCollectorDefaultTTL = 5 * time.Minute
-)
-
 // GlobalContextCollector is a shared ContextCollector to be used by FEVER.
 var GlobalContextCollector *ContextCollector
 
@@ -60,16 +54,17 @@ type ContextCollector struct {
 type Context []string
 
 // MakeContextCollector creates a new ContextCollector.
-func MakeContextCollector(shipper ContextShipper) *ContextCollector {
+func MakeContextCollector(shipper ContextShipper, defaultTTL time.Duration) *ContextCollector {
 	c := &ContextCollector{
 		Logger: log.WithFields(log.Fields{
 			"domain": "context",
 		}),
-		Cache:  cache.New(ContextCollectorDefaultTTL, ContextCollectorDefaultTTL),
+		Cache:  cache.New(defaultTTL, defaultTTL),
 		Marked: make(map[string]struct{}),
 		i:      0,
 		Ship:   shipper,
 	}
+	c.Logger.Debugf("created cache with default TTL %v", defaultTTL)
 	return c
 }
 

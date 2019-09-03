@@ -47,7 +47,7 @@ func TestContextCollector(t *testing.T) {
 		}
 		return nil
 	}
-	cc := MakeContextCollector(dsub)
+	cc := MakeContextCollector(dsub, 5*time.Minute)
 
 	nofReports := 0
 	for i := 0; i < 10000; i++ {
@@ -92,7 +92,7 @@ func TestContextCollectorMissingFlowID(t *testing.T) {
 		count++
 		return nil
 	}
-	cc := MakeContextCollector(dsub)
+	cc := MakeContextCollector(dsub, 5*time.Minute)
 
 	cc.Consume(&e)
 

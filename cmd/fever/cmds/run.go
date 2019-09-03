@@ -280,11 +280,13 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		processing.GlobalContextCollector = processing.MakeContextCollector(
 			func(entries processing.Context, logger *log.Entry) error {
 				shipChan <- entries
 				return nil
 			},
+			viper.GetDuration("context.cache-timeout"),
 		)
 		dispatcher.RegisterHandler(processing.GlobalContextCollector)
 		if pse != nil {
@@ -601,6 +603,8 @@ func init() {
 	viper.BindPFlag("context.submission-url", runCmd.PersistentFlags().Lookup("context-submission-url"))
 	runCmd.PersistentFlags().StringP("context-submission-exchange", "", "context", "Exchange to which flow context events will be submitted")
 	viper.BindPFlag("context.submission-exchange", runCmd.PersistentFlags().Lookup("context-submission-exchange"))
+	runCmd.PersistentFlags().DurationP("context-cache-timeout", "", 60*time.Minute, "time for flow metadata to be kept for uncompleted flows")
+	viper.BindPFlag("context.cache-timeout", runCmd.PersistentFlags().Lookup("context-cache-timeout"))
 
 	// Bloom filter alerting options
 	runCmd.PersistentFlags().StringP("bloom-file", "b", "", "Bloom filter for external indicator screening")

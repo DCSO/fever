@@ -58,6 +58,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc s
 				Category:  "Potentially Bad Traffic",
 				Signature: fmt.Sprintf(sig, alertPrefix) + value,
 			},
+			FlowID:     eve.FlowID,
 			Stream:     eve.Stream,
 			InIface:    eve.InIface,
 			SrcIP:      eve.SrcIP,

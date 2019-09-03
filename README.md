@@ -35,6 +35,9 @@ Flags:
   -b, --bloom-file string                        Bloom filter for external indicator screening
   -z, --bloom-zipped                             use gzipped Bloom filter file
   -c, --chunksize uint                           chunk size for batched event handling (e.g. inserts) (default 50000)
+      --context-enable                           collect and forward flow context for alerted flows
+      --context-submission-exchange string       Exchange to which flow context events will be submitted (default "context")
+      --context-submission-url string            URL to which flow context will be submitted (default "amqp://guest:guest@localhost:5672/")
   -d, --db-database string                       database DB (default "events")
       --db-enable                                write events to database
   -s, --db-host string                           database host (default "localhost:5432")

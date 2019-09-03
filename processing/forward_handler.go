@@ -28,6 +28,7 @@ type ForwardHandler struct {
 	Logger              *log.Entry
 	DoRDNS              bool
 	RDNSHandler         *RDNSHandler
+	ContextCollector    *ContextCollector
 	ForwardEventChan    chan []byte
 	OutputSocket        string
 	OutputConn          net.Conn
@@ -184,6 +185,9 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		err := json.Unmarshal([]byte(e.JSONLine), &ev)
 		if err != nil {
 			return err
+		}
+		if GlobalContextCollector != nil && e.EventType == "alert" {
+			GlobalContextCollector.Mark(string(e.FlowID))
 		}
 		if fh.DoRDNS && fh.RDNSHandler != nil {
 			err = fh.RDNSHandler.Consume(e)

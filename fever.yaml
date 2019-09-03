@@ -76,6 +76,12 @@ pdns:
   submission-url: amqp://guest:guest@localhost:5672/
   submission-exchange: pdns
 
+# Configuration for alert-associated metadata submission.
+context:
+  enable: false
+  submission-url: amqp://guest:guest@localhost:5672/
+  submission-exchange: context
+
 # Configuration for detailed flow metadata submission.
 flowextract:
   enable: false

@@ -44,6 +44,7 @@ var evekeys = [][]string{
 	[]string{"tls", "sni"},             // 19
 	[]string{"dns", "version"},         // 20
 	[]string{"dns", "answers"},         // 21
+	[]string{"flow_id"},                // 22
 }
 
 // ParseJSON extracts relevant fields from an EVE JSON entry into an Entry struct.
@@ -212,9 +213,15 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 				parseerr = err
 				return
 			}
+		case 22:
+			e.FlowID, err = jsonparser.ParseString(value)
+			if err != nil {
+				parseerr = err
+				return
+			}
 		}
 	}, evekeys...)
-	e.JSONLine = string(json[:])
+	e.JSONLine = string(json)
 
 	return e, parseerr
 }

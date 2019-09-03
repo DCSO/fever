@@ -39,4 +39,5 @@ type Entry struct {
 	BytesToServer int64
 	PktsToClient  int64
 	PktsToServer  int64
+	FlowID        string
 }

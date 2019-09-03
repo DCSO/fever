@@ -31,6 +31,7 @@ Flags:
       --active-rdns-cache-expiry duration        cache expiry interval for rDNS lookups (default 2m0s)
       --active-rdns-private-only                 only do active rDNS enrichment for RFC1918 IPs
       --bloom-alert-prefix string                String prefix for Bloom filter alerts (default "BLF")
+      --bloom-blacklist-iocs strings             Blacklisted strings in Bloom filter (will cause filter to be rejected) (default [/,/index.htm,/index.html])
   -b, --bloom-file string                        Bloom filter for external indicator screening
   -z, --bloom-zipped                             use gzipped Bloom filter file
   -c, --chunksize uint                           chunk size for batched event handling (e.g. inserts) (default 50000)

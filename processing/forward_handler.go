@@ -186,7 +186,7 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		if err != nil {
 			return err
 		}
-		if GlobalContextCollector != nil && e.EventType == "alert" {
+		if GlobalContextCollector != nil && e.EventType == types.EventTypeAlert {
 			GlobalContextCollector.Mark(string(e.FlowID))
 		}
 		if fh.DoRDNS && fh.RDNSHandler != nil {

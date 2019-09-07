@@ -14,6 +14,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// DebugOutputInterval specifies the amount of cache operations before
+// printing the current cache size, in verbose mode.
+const DebugOutputInterval = 100000
+
 // GlobalContextCollector is a shared ContextCollector to be used by FEVER.
 var GlobalContextCollector *ContextCollector
 
@@ -90,7 +94,7 @@ func (c *ContextCollector) Consume(e *types.Entry) error {
 	if exist {
 		// the 'flow' event always comes last, so we can use it as an
 		// indicator that the flow is complete and can be processed
-		if e.EventType == "flow" {
+		if e.EventType == types.EventTypeFlow {
 			var isMarked bool
 			c.MarkLock.Lock()
 			if _, ok := c.Marked[e.FlowID]; ok {
@@ -115,17 +119,17 @@ func (c *ContextCollector) Consume(e *types.Entry) error {
 			c.Cache.Set(e.FlowID, myC, cache.DefaultExpiration)
 		}
 	} else {
-		if e.EventType != "flow" {
+		if e.EventType != types.EventTypeFlow {
 			myC = append(myC, e.JSONLine)
 			c.Cache.Set(e.FlowID, myC, cache.DefaultExpiration)
 		}
 	}
 	c.i++
-	if c.i%100000 == 0 {
+	if c.i%DebugOutputInterval == 0 {
 		count := c.Cache.ItemCount()
 		c.Logger.WithFields(log.Fields{
 			"n": count,
-		}).Debugf("cache size after another 100k events")
+		}).Debugf("cache size after another %d events", DebugOutputInterval)
 		c.i = 0
 	}
 	return nil

@@ -5,7 +5,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -287,7 +286,7 @@ func (e EveOutEvent) MarshalJSON() ([]byte, error) {
 		FlowID string `json:"flow_id"`
 		Alias
 	}{
-		FlowID: fmt.Sprintf("%d", e.FlowID),
+		FlowID: strconv.FormatInt(e.FlowID, 10),
 		Alias:  (Alias)(e),
 	})
 	return v, err
@@ -308,10 +307,6 @@ func (e *EveOutEvent) UnmarshalJSON(d []byte) error {
 	}
 	*e = EveOutEvent(x.EveOutEvent2)
 	var err error
-	if x.FlowID.String() == "" {
-		e.FlowID = 0
-		return nil
-	}
-	e.FlowID, err = strconv.ParseInt(x.FlowID.String(), 10, 64)
+	e.FlowID, _ = x.FlowID.Int64() // ignore error; defaulting to zero
 	return err
 }

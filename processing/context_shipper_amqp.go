@@ -52,7 +52,7 @@ func (cs *ContextShipperAMQP) Start(s util.StatsSubmitter) (chan<- Context, erro
 				var myItem interface{}
 				err := json.Unmarshal([]byte(ctxItem), &myItem)
 				if err != nil {
-					log.Warnf("Could not marshal event JSON: %s", string(ctxItem))
+					log.Warnf("could not marshal event JSON: %s", string(ctxItem))
 					continue
 				}
 				out = append(out, myItem)

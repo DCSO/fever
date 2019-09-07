@@ -113,7 +113,7 @@ func TestContextShipperAMQPBrokenJSON(t *testing.T) {
 	}
 
 	close(inChan)
-	if entries[0].Message != `Could not marshal event JSON: {""value":1}` {
+	if entries[0].Message != `could not marshal event JSON: {""value":1}` {
 		t.Fatalf("wrong error message: %v", entries[0].Message)
 	}
 }

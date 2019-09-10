@@ -9,9 +9,16 @@ import (
 	"time"
 )
 
-// SuricataTimestampFormat is a Go time formatting string describing the
-// timestamp format used by Suricata's EVE JSON output.
-const SuricataTimestampFormat = "2006-01-02T15:04:05.999999-0700"
+const (
+	// SuricataTimestampFormat is a Go time formatting string describing the
+	// timestamp format used by Suricata's EVE JSON output.
+	SuricataTimestampFormat = "2006-01-02T15:04:05.999999-0700"
+
+	// EventTypeFlow is the EventType string for the flow type.
+	EventTypeFlow = "flow"
+	// EventTypeAlert is the EventType string for the alert type.
+	EventTypeAlert = "alert"
+)
 
 type suriTime struct{ time.Time }
 

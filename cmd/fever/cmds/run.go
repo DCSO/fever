@@ -255,6 +255,51 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		<-c
 	}()
 
+	// context collector setup
+	enableContext := viper.GetBool("context.enable")
+	if enableContext {
+		var csubmitter util.StatsSubmitter
+		if dummyMode {
+			csubmitter, err = util.MakeDummySubmitter()
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			cSubmissionURL := viper.GetString("context.submission-url")
+			cSubmissionExchange := viper.GetString("context.submission-exchange")
+			csubmitter, err = util.MakeAMQPSubmitter(cSubmissionURL,
+				cSubmissionExchange, verbose)
+			if err != nil {
+				log.Fatal(err)
+			}
+			csubmitter.UseCompression()
+			defer csubmitter.Finish()
+		}
+		cshp := processing.ContextShipperAMQP{}
+		shipChan, err := cshp.Start(csubmitter)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		processing.GlobalContextCollector = processing.MakeContextCollector(
+			func(entries processing.Context, logger *log.Entry) error {
+				shipChan <- entries
+				return nil
+			},
+			viper.GetDuration("context.cache-timeout"),
+		)
+		dispatcher.RegisterHandler(processing.GlobalContextCollector)
+		if pse != nil {
+			processing.GlobalContextCollector.SubmitStats(pse)
+		}
+		processing.GlobalContextCollector.Run()
+		defer func() {
+			c := make(chan bool)
+			processing.GlobalContextCollector.Stop(c)
+			<-c
+		}()
+	}
+
 	// passive DNS setup
 	enablePDNS := viper.GetBool("pdns.enable")
 	if enablePDNS {
@@ -383,7 +428,6 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 		dispatcher.RegisterHandler(ua)
 		ua.Run()
-
 		defer func() {
 			c := make(chan bool)
 			ua.Stop(c)
@@ -551,6 +595,16 @@ func init() {
 	viper.BindPFlag("pdns.submission-url", runCmd.PersistentFlags().Lookup("pdns-submission-url"))
 	runCmd.PersistentFlags().StringP("pdns-submission-exchange", "", "pdns", "Exchange to which passive DNS events will be submitted")
 	viper.BindPFlag("pdns.submission-exchange", runCmd.PersistentFlags().Lookup("pdns-submission-exchange"))
+
+	// Context collection options
+	runCmd.PersistentFlags().BoolP("context-enable", "", false, "collect and forward flow context for alerted flows")
+	viper.BindPFlag("context.enable", runCmd.PersistentFlags().Lookup("context-enable"))
+	runCmd.PersistentFlags().StringP("context-submission-url", "", "amqp://guest:guest@localhost:5672/", "URL to which flow context will be submitted")
+	viper.BindPFlag("context.submission-url", runCmd.PersistentFlags().Lookup("context-submission-url"))
+	runCmd.PersistentFlags().StringP("context-submission-exchange", "", "context", "Exchange to which flow context events will be submitted")
+	viper.BindPFlag("context.submission-exchange", runCmd.PersistentFlags().Lookup("context-submission-exchange"))
+	runCmd.PersistentFlags().DurationP("context-cache-timeout", "", 60*time.Minute, "time for flow metadata to be kept for uncompleted flows")
+	viper.BindPFlag("context.cache-timeout", runCmd.PersistentFlags().Lookup("context-cache-timeout"))
 
 	// Bloom filter alerting options
 	runCmd.PersistentFlags().StringP("bloom-file", "b", "", "Bloom filter for external indicator screening")

@@ -27,6 +27,7 @@ var entries = []types.Entry{
 		DNSRCode:  "NOERROR",
 		DNSRData:  "10.0.0.12",
 		DNSType:   "answer",
+		FlowID:    "4711",
 	},
 	types.Entry{
 		SrcIP:      "10.0.0.10",
@@ -40,6 +41,7 @@ var entries = []types.Entry{
 		HTTPHost:   "api.icndb.com",
 		HTTPUrl:    `/jokes/random?firstName=Chuck&lastName=Norris&limitTo=[nerdy]`,
 		HTTPMethod: `GET`,
+		FlowID:     "2323",
 	},
 	types.Entry{
 		SrcIP:      "10.0.0.10",
@@ -53,6 +55,7 @@ var entries = []types.Entry{
 		HTTPHost:   "foobar",
 		HTTPUrl:    `/scripts/wpnbr.dll`,
 		HTTPMethod: `POST`,
+		FlowID:     "2134",
 	},
 }
 

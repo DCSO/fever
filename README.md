@@ -31,9 +31,13 @@ Flags:
       --active-rdns-cache-expiry duration        cache expiry interval for rDNS lookups (default 2m0s)
       --active-rdns-private-only                 only do active rDNS enrichment for RFC1918 IPs
       --bloom-alert-prefix string                String prefix for Bloom filter alerts (default "BLF")
+      --bloom-blacklist-iocs strings             Blacklisted strings in Bloom filter (will cause filter to be rejected) (default [/,/index.htm,/index.html])
   -b, --bloom-file string                        Bloom filter for external indicator screening
   -z, --bloom-zipped                             use gzipped Bloom filter file
   -c, --chunksize uint                           chunk size for batched event handling (e.g. inserts) (default 50000)
+      --context-enable                           collect and forward flow context for alerted flows
+      --context-submission-exchange string       Exchange to which flow context events will be submitted (default "context")
+      --context-submission-url string            URL to which flow context will be submitted (default "amqp://guest:guest@localhost:5672/")
   -d, --db-database string                       database DB (default "events")
       --db-enable                                write events to database
   -s, --db-host string                           database host (default "localhost:5432")

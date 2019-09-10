@@ -155,7 +155,7 @@ func TestForwardHandler(t *testing.T) {
 		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
 	}
 
-	var eve types.EveEvent
+	var eve types.EveOutEvent
 	err = json.Unmarshal([]byte(coll[0]), &eve)
 	if err != nil {
 		t.Fatal(err)
@@ -235,7 +235,7 @@ func TestForwardAllHandler(t *testing.T) {
 	if len(coll) != 3 {
 		t.Fatalf("unexpected number of alerts: %d != 3", len(coll))
 	}
-	var eve types.EveEvent
+	var eve types.EveOutEvent
 	err = json.Unmarshal([]byte(coll[0]), &eve)
 	if err != nil {
 		t.Fatal(err)

@@ -1,9 +1,10 @@
 package types
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2017, 2019, DCSO GmbH
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 )
@@ -269,4 +270,43 @@ type EveEvent struct {
 	TLS              *TLSEvent      `json:"tls,omitempty"`
 	Stats            *statsEvent    `json:"stats,omitempty"`
 	ExtraInfo        *ExtraInfo     `json:"_extra,omitempty"`
+}
+
+// EveOutEvent is the version of EveEvent that we use to marshal the output for
+// downstream consumption.
+type EveOutEvent EveEvent
+
+// MarshalJSON for EveOutEvents ensures that FlowIDs are represented in JSON
+// as a string. This is necessary to work around some arbitrary limitations such
+// as syslog-ng's funny JSON parser implementation, which truncates large
+// integers found in JSON values.
+func (e EveOutEvent) MarshalJSON() ([]byte, error) {
+	type Alias EveOutEvent
+	v, err := json.Marshal(&struct {
+		FlowID string `json:"flow_id"`
+		Alias
+	}{
+		FlowID: strconv.FormatInt(e.FlowID, 10),
+		Alias:  (Alias)(e),
+	})
+	return v, err
+}
+
+// UnmarshalJSON implements filling an EveOutEvent from a byte slice, converting
+// the string in the FlowID field back into a number. This is necessary to
+// ensure that a round-trip (write+read) works.
+func (e *EveOutEvent) UnmarshalJSON(d []byte) error {
+	type EveOutEvent2 EveOutEvent
+	x := struct {
+		EveOutEvent2
+		FlowID json.Number `json:"flow_id"`
+	}{EveOutEvent2: EveOutEvent2(*e)}
+
+	if err := json.Unmarshal(d, &x); err != nil {
+		return err
+	}
+	*e = EveOutEvent(x.EveOutEvent2)
+	var err error
+	e.FlowID, _ = x.FlowID.Int64() // ignore error; defaulting to zero
+	return err
 }

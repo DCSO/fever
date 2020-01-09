@@ -1,9 +1,11 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, DCSO GmbH
+// Copyright (c) 2017, 2018, 2020, DCSO GmbH
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -262,4 +264,30 @@ func RandStringBytesMaskImprSrc(n int) string {
 	}
 
 	return string(b)
+}
+
+// MakeTLSConfig returns a TLS configuration suitable for an endpoint with private
+// key stored in keyFile and corresponding certificate stored in certFile. rcas
+// defines a list of root CA filenames.
+// Note: It appears as if ICAs have to be loaded via a chained server
+// certificate file as the RootCAs pool in tls.Config appears to be referred to
+// for RCAs only.
+func MakeTLSConfig(certFile, keyFile string, rcas []string, skipVerify bool) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+	rcaPool := x509.NewCertPool()
+	for _, filename := range rcas {
+		rca, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return nil, err
+		}
+		rcaPool.AppendCertsFromPEM(rca)
+	}
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            rcaPool,
+		InsecureSkipVerify: skipVerify,
+	}, nil
 }

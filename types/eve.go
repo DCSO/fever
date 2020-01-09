@@ -1,7 +1,7 @@
 package types
 
 // DCSO FEVER
-// Copyright (c) 2017, 2019, DCSO GmbH
+// Copyright (c) 2017, 2019, 2020, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -20,9 +20,11 @@ const (
 	EventTypeAlert = "alert"
 )
 
-type suriTime struct{ time.Time }
+// SuriTime is a Suricata-formatted timestamp string.
+type SuriTime struct{ time.Time }
 
-func (t *suriTime) UnmarshalJSON(b []byte) error {
+// UnmarshalJSON converts a JSON byte slice into a SuriTime struct.
+func (t *SuriTime) UnmarshalJSON(b []byte) error {
 	data, err := strconv.Unquote(string(b))
 	if err != nil {
 		return err
@@ -31,7 +33,8 @@ func (t *suriTime) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func (t *suriTime) MarshalJSON() ([]byte, error) {
+// MarshalJSON converts a SuriTime struct into a JSON byte slice.
+func (t *SuriTime) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + t.Time.Format(SuricataTimestampFormat) + "\""), nil
 }
 
@@ -80,13 +83,14 @@ type fileinfoEvent struct {
 	TxID     int    `json:"tx_id"`
 }
 
-type flowEvent struct {
+// EveFlowEvent is an Flow sub-object of an EVE entry.
+type EveFlowEvent struct {
 	PktsToserver  int       `json:"pkts_toserver"`
 	PktsToclient  int       `json:"pkts_toclient"`
 	BytesToserver int       `json:"bytes_toserver"`
 	BytesToclient int       `json:"bytes_toclient"`
-	Start         *suriTime `json:"start"`
-	End           *suriTime `json:"end"`
+	Start         *SuriTime `json:"start"`
+	End           *SuriTime `json:"end"`
 	Age           int       `json:"age"`
 	State         string    `json:"state"`
 	Reason        string    `json:"reason"`
@@ -241,13 +245,14 @@ type packetInfo struct {
 
 // ExtraInfo contains non-EVE-standard extra information
 type ExtraInfo struct {
-	BloomIOC string `json:"bloom-ioc,omitempty"`
+	BloomIOC     string      `json:"bloom-ioc,omitempty"`
+	StenosisInfo interface{} `json:"stenosis-info,omitempty"`
 }
 
 // EveEvent is the huge struct which can contain a parsed suricata eve.json
 // log event.
 type EveEvent struct {
-	Timestamp        *suriTime      `json:"timestamp"`
+	Timestamp        *SuriTime      `json:"timestamp"`
 	EventType        string         `json:"event_type"`
 	FlowID           int64          `json:"flow_id,omitempty"`
 	InIface          string         `json:"in_iface,omitempty"`
@@ -272,7 +277,7 @@ type EveEvent struct {
 	DNS              *DNSEvent      `json:"dns,omitempty"`
 	HTTP             *HTTPEvent     `json:"http,omitempty"`
 	Fileinfo         *fileinfoEvent `json:"fileinfo,omitempty"`
-	Flow             *flowEvent     `json:"flow,omitempty"`
+	Flow             *EveFlowEvent  `json:"flow,omitempty"`
 	SSH              *sshEvent      `json:"ssh,omitempty"`
 	TLS              *TLSEvent      `json:"tls,omitempty"`
 	Stats            *statsEvent    `json:"stats,omitempty"`

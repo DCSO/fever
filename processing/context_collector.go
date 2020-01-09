@@ -45,6 +45,7 @@ type ContextCollector struct {
 	StoppedCounterChan chan bool
 	Running            bool
 	StatsLock          sync.Mutex
+	FlowListeners      []chan types.Entry
 
 	Cache    *cache.Cache
 	MarkLock sync.Mutex
@@ -63,10 +64,11 @@ func MakeContextCollector(shipper ContextShipper, defaultTTL time.Duration) *Con
 		Logger: log.WithFields(log.Fields{
 			"domain": "context",
 		}),
-		Cache:  cache.New(defaultTTL, defaultTTL),
-		Marked: make(map[string]struct{}),
-		i:      0,
-		Ship:   shipper,
+		Cache:         cache.New(defaultTTL, defaultTTL),
+		Marked:        make(map[string]struct{}),
+		i:             0,
+		Ship:          shipper,
+		FlowListeners: make([]chan types.Entry, 0),
 	}
 	c.Logger.Debugf("created cache with default TTL %v", defaultTTL)
 	return c
@@ -109,7 +111,12 @@ func (c *ContextCollector) Consume(e *types.Entry) error {
 					c.PerfStats.JSONBytes += uint64(len(v))
 				}
 				c.StatsLock.Unlock()
-				c.Ship(cval.(Context), c.Logger)
+				if c.Ship != nil {
+					c.Ship(cval.(Context), c.Logger)
+				}
+				for _, fl := range c.FlowListeners {
+					fl <- *e
+				}
 				delete(c.Marked, e.FlowID)
 			}
 			c.Cache.Delete(e.FlowID)
@@ -194,4 +201,10 @@ func (c *ContextCollector) Stop(stoppedChan chan bool) {
 // SubmitStats registers a PerformanceStatsEncoder for runtime stats submission.
 func (c *ContextCollector) SubmitStats(sc *util.PerformanceStatsEncoder) {
 	c.StatsEncoder = sc
+}
+
+// AddFlowListener registers flowChan as a channel to emit a 'flow' Entry on
+// whenever a marked flow is forwarded
+func (c *ContextCollector) AddFlowListener(flowChan chan types.Entry) {
+	c.FlowListeners = append(c.FlowListeners, flowChan)
 }

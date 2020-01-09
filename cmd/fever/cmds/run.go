@@ -1,9 +1,10 @@
 package cmd
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, 2019, DCSO GmbH
+// Copyright (c) 2017, 2018, 2019, 2020, DCSO GmbH
 
 import (
+	"crypto/tls"
 	"io"
 	"os"
 	"os/signal"
@@ -189,6 +190,33 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			}
 		}
 		forwardHandler.(*processing.ForwardHandler).Run()
+
+		stenosis := viper.GetBool("stenosis.enable")
+		if stenosis {
+			// flow notifier setup
+			flowNotifyChan := make(chan types.Entry)
+			defer close(flowNotifyChan)
+			fn := processing.MakeFlowNotifier(flowNotifyChan)
+			dispatcher.RegisterHandler(fn)
+			var tlsConfig *tls.Config
+			if viper.GetBool("stenosis.tls") {
+				tlsConfig, err = util.MakeTLSConfig(viper.GetString("stenosis.client-chain-file"),
+					viper.GetString("stenosis.client-key-file"),
+					viper.GetStringSlice("stenosis.root-cas"),
+					viper.GetBool("stenosis.skipverify"))
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+			stenosisTimeBracket := viper.GetDuration("stenosis.time-bracket")
+			stenosisTimeout := viper.GetDuration("stenosis.submission-timeout")
+			stenosisURL := viper.GetString("stenosis.submission-url")
+
+			if err := forwardHandler.(*processing.ForwardHandler).EnableStenosis(stenosisURL,
+				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, tlsConfig); err != nil {
+				log.Fatal(err)
+			}
+		}
 		defer func() {
 			c := make(chan bool)
 			forwardHandler.(*processing.ForwardHandler).Stop(c)
@@ -605,6 +633,24 @@ func init() {
 	viper.BindPFlag("context.submission-exchange", runCmd.PersistentFlags().Lookup("context-submission-exchange"))
 	runCmd.PersistentFlags().DurationP("context-cache-timeout", "", 60*time.Minute, "time for flow metadata to be kept for uncompleted flows")
 	viper.BindPFlag("context.cache-timeout", runCmd.PersistentFlags().Lookup("context-cache-timeout"))
+
+	// Stenosis options
+	runCmd.PersistentFlags().BoolP("stenosis-enable", "", false, "notify Stenosis instance on alert")
+	viper.BindPFlag("stenosis.enable", runCmd.PersistentFlags().Lookup("stenosis-enable"))
+	runCmd.PersistentFlags().StringP("stenosis-submission-url", "", "http://localhost:19205", "URL to which Stenosis requests will be submitted")
+	viper.BindPFlag("stenosis.submission-url", runCmd.PersistentFlags().Lookup("stenosis-submission-url"))
+	runCmd.PersistentFlags().BoolP("stenosis-tls", "", false, "use TLS for Stenosis")
+	viper.BindPFlag("stenosis.tls", runCmd.PersistentFlags().Lookup("stenosis-tls"))
+	runCmd.PersistentFlags().BoolP("stenosis-skipverify", "", false, "skip TLS certificate verification")
+	viper.BindPFlag("stenosis.skipverify", runCmd.PersistentFlags().Lookup("stenosis-skipverify"))
+	runCmd.PersistentFlags().StringP("stenosis-client-key-file", "", "stenosis.key", "key file for Stenosis TLS connection")
+	viper.BindPFlag("stenosis.client-key-file", runCmd.PersistentFlags().Lookup("stenosis-client-key-file"))
+	runCmd.PersistentFlags().StringP("stenosis-client-chain-file", "", "stenosis.crt", "certificate file for Stenosis TLS connection")
+	viper.BindPFlag("stenosis.client-chain-file", runCmd.PersistentFlags().Lookup("stenosis-client-chain-file"))
+	runCmd.PersistentFlags().StringSliceP("stenosis-root-cas", "", []string{"root.crt"}, "root certificate(s) for TLS connection to stenosis")
+	viper.BindPFlag("stenosis.root-cas", runCmd.PersistentFlags().Lookup("stenosis-root-cas"))
+	runCmd.PersistentFlags().DurationP("stenosis-submission-timeout", "", 5*time.Second, "timeout for connecting to Stenosis")
+	viper.BindPFlag("stenosis.submission-timeout", runCmd.PersistentFlags().Lookup("stenosis-submission-timeout"))
 
 	// Bloom filter alerting options
 	runCmd.PersistentFlags().StringP("bloom-file", "b", "", "Bloom filter for external indicator screening")

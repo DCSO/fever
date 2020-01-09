@@ -13,7 +13,7 @@ import (
 func TestEVERoundtripTimestamp(t *testing.T) {
 	timeCmp, _ := time.Parse(time.RFC3339, "2019-08-06 13:30:01.690233 +0200 CEST")
 	ee := EveEvent{
-		Timestamp: &suriTime{
+		Timestamp: &SuriTime{
 			Time: timeCmp,
 		},
 		EventType: "http",
@@ -48,7 +48,7 @@ func TestEVERoundtripTimestamp(t *testing.T) {
 func TestEVEStringFlowIDRoundtrip(t *testing.T) {
 	timeCmp, _ := time.Parse(time.RFC3339, "2019-08-06 13:30:01.690233 +0200 CEST")
 	ee := EveOutEvent{
-		Timestamp: &suriTime{
+		Timestamp: &SuriTime{
 			Time: timeCmp,
 		},
 		EventType: "http",

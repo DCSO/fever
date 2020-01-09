@@ -1,0 +1,58 @@
+// Copyright (c) 2020, DCSO GmbH
+
+syntax = "proto3";
+package task;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/DCSO/fever/stenosis/task";
+
+// QueryType specifies the kind of query in a Query message. 
+enum QueryType {
+  UNKNOWN_QUERY_TYPE = 0;
+  FLOW_PARAM = 1;
+  FLOW_ID = 2;
+  COMMUNITY_ID = 3;
+  MOCK_QUERY = 254;
+}
+
+// FlowParam contains parameters for flow queries.
+message FlowParam {
+  // Network contains a network protocol identifier and is expected to contain
+  // the same values as are commonly used in go's net package. Currently only 
+  // "tcp" and "udp" are supported.
+  string network = 1;
+  // SrcHostPort contains a "host and port string" for the source endpoint. 
+  // Values are expected to adhere to the output of go's net.JoinHostPort 
+  // function, i.e., "host:port", or, "[host]:port".
+  string src_host_port = 2;
+  // DstHostPort contains a "host and port string" for the destination 
+  // endpoint. Values are expected to adhere to the output of go's 
+  // net.JoinHostPort function, i.e., "host:port", or, "[host]:port".
+  string dst_host_port = 3;
+}
+
+// MockQuery is fore testing purposes only.
+message MockQuery {
+  string mock = 1;
+}
+
+// Query encapsulates various query types to be processed by stenosis. Query
+// messages are expected to be forwarded as JSON-marshaled data via stenosis
+// REST API endpoint (typically as ad-hoc queries) or as gRPC messages 
+// (typically by FEVER).
+message Query {
+  // Type specifies the query type.
+  QueryType type = 1;
+	// BeforeTime is the point in time before which packets are queried for.
+  google.protobuf.Timestamp before_time = 2;
+  // AfterTime is the point in time after which packets are queried for.
+  google.protobuf.Timestamp after_time = 3;
+  // Content contains the Query type-specific parameters.
+  oneof content {
+    // FlowParam contains parameters for flow-based queries.
+    FlowParam flow_param = 4;
+    // MockQuery is for testing purposes only.
+    MockQuery mock_query = 14;
+  }
+}

@@ -1,0 +1,47 @@
+// Copyright (c) 2020, DCSO GmbH
+
+syntax = "proto3";
+
+package api;
+
+import "task/query.proto";
+import "api/hateoas.proto";
+
+option go_package = "github.com/DCSO/fever/stenosis/api";
+
+// AliveRequest contains the id to be echoed by a successful Alive() call.
+message AliveRequest {
+  // Id is the id to be echoed.
+  string id = 1;
+}
+
+// AliveResponse contains the echoed id of a preceeding Alive() request.
+message AliveResponse {
+  // Id is the echoed id of the preceeding request.
+  string id = 1;
+  // Ok is the fixed string http.StatusText(http.StatusOK)
+  string ok = 2;
+}
+
+// QueryResponse contains the response to a QueryRequest.
+message QueryResponse {
+  // Token is the task identifying token in hex encoding.
+  string token = 1;
+  // Hateoas provides RESTful state optionally fowarded by "gRPC gateway".
+  // XLinks to avoid mingling with the automatic name assignment while 
+  // maintaining REST API stability towards DCSO's portal.
+  // This field is subject to the request's omit_additional_data flag.
+  repeated HateoasLink _links = 2;
+}
+
+// StenosisServiceQuery encompasses the gRPC endpoints relevant to submitting 
+// queries processed by stenosis.
+service StenosisServiceQuery {
+  // Alive checks whether a gRPC server is actively listening to requests by
+  // echoing the request id. 
+  rpc Alive(AliveRequest) returns (AliveResponse);
+  
+  // Query forwards a task.Query and responds with an identifying task.Token in
+	// return.
+  rpc Query(task.Query) returns (QueryResponse);
+ }

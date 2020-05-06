@@ -269,13 +269,20 @@ func RandStringBytesMaskImprSrc(n int) string {
 // MakeTLSConfig returns a TLS configuration suitable for an endpoint with private
 // key stored in keyFile and corresponding certificate stored in certFile. rcas
 // defines a list of root CA filenames.
+// If certFile and keyFile are empty, e.g., when configuring a tls-client
+// endpoint w/o mutual authentication, only the RootCA pool is populated.
 // Note: It appears as if ICAs have to be loaded via a chained server
 // certificate file as the RootCAs pool in tls.Config appears to be referred to
 // for RCAs only.
 func MakeTLSConfig(certFile, keyFile string, rcas []string, skipVerify bool) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, err
+	certs := make([]tls.Certificate, 0, 1)
+
+	if certFile != "" || keyFile != "" {
+		c, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, c)
 	}
 	rcaPool := x509.NewCertPool()
 	for _, filename := range rcas {
@@ -285,8 +292,9 @@ func MakeTLSConfig(certFile, keyFile string, rcas []string, skipVerify bool) (*t
 		}
 		rcaPool.AppendCertsFromPEM(rca)
 	}
+
 	return &tls.Config{
-		Certificates:       []tls.Certificate{cert},
+		Certificates:       certs,
 		RootCAs:            rcaPool,
 		InsecureSkipVerify: skipVerify,
 	}, nil

@@ -4,24 +4,26 @@ package processing
 // Copyright (c) 2020, DCSO GmbH
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/DCSO/fever/stenosis/api"
+	"github.com/DCSO/fever/stenosis/task"
 	"github.com/DCSO/fever/types"
+	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	cache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	defaultStenosisTimeBracket = 1 * time.Second
+	defaultStenosisTimeBracket = 1 * time.Minute
 	maxErrorCount              = 10
 )
 
@@ -31,51 +33,47 @@ const (
 // be annotated with returned tokens and forwarded.
 type StenosisConnector struct {
 	Endpoint       string
-	Client         http.Client
+	Client         api.StenosisServiceQueryClient
 	TimeBracket    time.Duration
+	Timeout        time.Duration
 	ErrorCount     uint64
 	FlowNotifyChan chan types.Entry
 	Cache          *cache.Cache
 }
 
-// StenosisFlowParam contains all data required for a FLOW_PARAM type request.
-type StenosisFlowParam struct {
-	Network     string `json:"network"`
-	SrcHostPort string `json:"src_host_port"`
-	DstHostPort string `json:"dst_host_port"`
-}
-
-// StenosisRequest contains all data required to do a request against a
-// Stenosis server.
-type StenosisRequest struct {
-	Type       string            `json:"type"`
-	FlowParam  StenosisFlowParam `json:"flow_param"`
-	AfterTime  string            `json:"after_time,omitempty"`
-	BeforeTime string            `json:"before_time,omitempty"`
-}
-
 // MakeStenosisConnector returns a new StenosisConnector for the
 // given parameters.
-func MakeStenosisConnector(endpoint string, timeout time.Duration,
+func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 	notifyChan chan types.Entry, forwardChan chan []byte,
-	tlsConfig *tls.Config) *StenosisConnector {
+	tlsConfig *tls.Config) (*StenosisConnector, error) {
 	sConn := &StenosisConnector{
-		Endpoint: endpoint,
-		Client: http.Client{
-			Timeout: timeout,
-		},
+		Endpoint:       endpoint,
 		FlowNotifyChan: notifyChan,
-		TimeBracket:    defaultStenosisTimeBracket,
+		TimeBracket: func() time.Duration {
+			if timeBracket != 0 {
+				return timeBracket
+			}
+			return defaultStenosisTimeBracket
+		}(),
+		Timeout: timeout,
 		//TODO: make configurable
 		Cache: cache.New(30*time.Minute, 30*time.Second),
 	}
+	dialOpts := make([]grpc.DialOption, 0, 1)
 	if tlsConfig != nil {
-		sConn.Client.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	} else {
+		dialOpts = append(dialOpts, grpc.WithInsecure())
 	}
+	conn, err := grpc.Dial(endpoint, dialOpts...)
+	if err != nil {
+		return nil, err
+	}
+	sConn.Client = api.NewStenosisServiceQueryClient(conn)
 
 	go func() {
+		defer conn.Close()
+
 		for flow := range sConn.FlowNotifyChan {
 			var myAlerts []types.Entry
 			aval, exist := sConn.Cache.Get(flow.FlowID)
@@ -114,26 +112,7 @@ func MakeStenosisConnector(endpoint string, timeout time.Duration,
 			}
 		}
 	}()
-	return sConn
-}
-
-func (s *StenosisConnector) formatQuery(e types.EveOutEvent) ([]byte, error) {
-	request := StenosisRequest{
-		Type: "FLOW_PARAM", // hardcoded for now
-		FlowParam: StenosisFlowParam{
-			Network:     strings.ToLower(e.Proto),
-			SrcHostPort: fmt.Sprintf("%s:%d", e.SrcIP, e.SrcPort),
-			DstHostPort: fmt.Sprintf("%s:%d", e.DestIP, e.DestPort),
-		},
-	}
-	if e.Flow != nil && e.Flow.Start != nil {
-		request.AfterTime = e.Flow.Start.Time.Add(-s.TimeBracket).Format(time.RFC3339Nano)
-	}
-	if e.Flow != nil && e.Flow.End != nil {
-		request.BeforeTime = e.Flow.End.Time.Add(s.TimeBracket).Format(time.RFC3339Nano)
-	}
-	json, err := json.Marshal(request)
-	return json, err
+	return sConn, nil
 }
 
 func (s *StenosisConnector) handleError(err error) error {
@@ -170,58 +149,37 @@ func (s *StenosisConnector) Accept(e *types.Entry) {
 
 func (s *StenosisConnector) submit(e *types.Entry) (interface{}, error) {
 	var ev types.EveOutEvent
-	err := json.Unmarshal([]byte(e.JSONLine), &ev)
-	if err != nil {
+	if err := json.Unmarshal([]byte(e.JSONLine), &ev); err != nil {
 		return nil, err
 	}
 	log.Debug(string(e.JSONLine))
-	jsonRequest, err := s.formatQuery(ev)
-	if err != nil {
-		return nil, err
-	}
-	log.Debug(string(jsonRequest))
 
+	query := &task.Query{
+		Type: task.QueryType_FLOW_PARAM,
+		Content: &task.Query_FlowParam{FlowParam: &task.FlowParam{
+			Network:     strings.ToLower(ev.Proto),
+			SrcHostPort: fmt.Sprintf("%s:%d", ev.SrcIP, ev.SrcPort),
+			DstHostPort: fmt.Sprintf("%s:%d", ev.DestIP, ev.DestPort),
+		}},
+	}
+	if ev.Flow != nil && ev.Flow.Start != nil {
+		query.AfterTime, _ = ptypes.TimestampProto(ev.Flow.Start.Time.Add(-s.TimeBracket))
+	}
+	if ev.Flow != nil && ev.Flow.End != nil {
+		query.BeforeTime, _ = ptypes.TimestampProto(ev.Flow.End.Time.Add(s.TimeBracket))
+	}
 	// prepare context
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, s.Client.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.Timeout)
 	defer cancel()
 
 	nowTime := time.Now()
-
-	// prepare request
-	req, _ := http.NewRequest(http.MethodPost, s.Endpoint, bytes.NewBuffer(jsonRequest))
-	req = req.WithContext(ctx)
-	req.Header = map[string][]string{
-		"Content-Type": {"application/json"},
-	}
-
-	// get response
-	resp, err := s.Client.Do(req)
+	resp, err := s.Client.Query(ctx, query)
 	if err != nil {
 		return nil, s.handleError(fmt.Errorf("error submitting entry to stenosis: %s", err.Error()))
 	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, s.handleError(fmt.Errorf("error submitting entry to stenosis: %s", resp.Status))
-	}
-
-	responseBytes, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-
 	log.Debugf("query took %f", time.Since(nowTime))
-
-	if err != nil {
-		return nil, s.handleError(err)
-	}
-
-	// parse and attach response
-	var outParsed interface{}
-	err = json.Unmarshal(responseBytes, &outParsed)
-	if err != nil {
-		return nil, s.handleError(err)
-	}
-
 	s.resetErrors()
 
-	return outParsed, nil
+	return resp, nil
 }

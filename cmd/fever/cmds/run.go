@@ -208,9 +208,14 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
+			stenosisTimeBracket := viper.GetDuration("stenosis.time-bracket")
 			stenosisTimeout := viper.GetDuration("stenosis.submission-timeout")
 			stenosisURL := viper.GetString("stenosis.submission-url")
-			forwardHandler.(*processing.ForwardHandler).EnableStenosis(stenosisURL, stenosisTimeout, flowNotifyChan, tlsConfig)
+
+			if err := forwardHandler.(*processing.ForwardHandler).EnableStenosis(stenosisURL,
+				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, tlsConfig); err != nil {
+				log.Fatal(err)
+			}
 		}
 		defer func() {
 			c := make(chan bool)

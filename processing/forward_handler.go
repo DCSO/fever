@@ -243,8 +243,12 @@ func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamer(expiryPeriod, 2*expiryPeriod))
 }
 
-func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout time.Duration, notifyChan chan types.Entry, tlsConfig *tls.Config) {
-	fh.StenosisConnector = MakeStenosisConnector(endpoint, timeout, notifyChan, fh.ForwardEventChan, tlsConfig)
+// EnableStenosis ...
+func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout, timeBracket time.Duration,
+	notifyChan chan types.Entry, tlsConfig *tls.Config) (err error) {
+	fh.StenosisConnector, err = MakeStenosisConnector(endpoint, timeout, timeBracket,
+		notifyChan, fh.ForwardEventChan, tlsConfig)
+	return
 }
 
 // Run starts forwarding of JSON representations of all consumed events

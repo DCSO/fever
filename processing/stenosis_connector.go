@@ -78,7 +78,7 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 			var myAlerts []types.Entry
 			aval, exist := sConn.Cache.Get(flow.FlowID)
 			if exist {
-				log.Debugf("flow with existing alert finished: %f", flow)
+				log.Debugf("flow with existing alert finished: %v", flow)
 				myAlerts = aval.([]types.Entry)
 				outParsed, err := sConn.submit(&flow)
 				if err != nil {
@@ -178,7 +178,7 @@ func (s *StenosisConnector) submit(e *types.Entry) (interface{}, error) {
 	if err != nil {
 		return nil, s.handleError(fmt.Errorf("error submitting entry to stenosis: %s", err.Error()))
 	}
-	log.Debugf("query took %f", time.Since(nowTime))
+	log.Debugf("query took %v", time.Since(nowTime))
 	s.resetErrors()
 
 	return resp, nil

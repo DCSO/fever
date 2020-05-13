@@ -35,6 +35,7 @@ Flags:
   -b, --bloom-file string                        Bloom filter for external indicator screening
   -z, --bloom-zipped                             use gzipped Bloom filter file
   -c, --chunksize uint                           chunk size for batched event handling (e.g. inserts) (default 50000)
+      --context-cache-timeout duration           time for flow metadata to be kept for uncompleted flows (default 1h0m0s)
       --context-enable                           collect and forward flow context for alerted flows
       --context-submission-exchange string       Exchange to which flow context events will be submitted (default "context")
       --context-submission-url string            URL to which flow context will be submitted (default "amqp://guest:guest@localhost:5672/")
@@ -76,12 +77,20 @@ Flags:
       --pdns-submission-url string               URL to which passive DNS events will be submitted (default "amqp://guest:guest@localhost:5672/")
       --profile string                           enable runtime profiling to given file
       --reconnect-retries uint                   number of retries connecting to socket or sink, 0 = no retry limit
+      --stenosis-cache-expiry duration           alert cache expiry timeout (default 30m0s)
+      --stenosis-client-chain-file string        certificate file for Stenosis TLS connection (default "stenosis.crt")
+      --stenosis-client-key-file string          key file for Stenosis TLS connection (default "stenosis.key")
+      --stenosis-enable                          notify Stenosis instance on alert
+      --stenosis-root-cas strings                root certificate(s) for TLS connection to stenosis (default [root.crt])
+      --stenosis-skipverify                      skip TLS certificate verification
+      --stenosis-submission-timeout duration     timeout for connecting to Stenosis (default 5s)
+      --stenosis-submission-url string           URL to which Stenosis requests will be submitted (default "http://localhost:19205")
+      --stenosis-tls                             use TLS for Stenosis
       --toolname string                          set toolname (default "fever")
   -v, --verbose                                  enable verbose logging (debug log level)
 
 Global Flags:
       --config string   config file (default is $HOME/.fever.yaml)
-
 ```
 
 It is also possible to use a config file in YAML format ([Example](fever.yaml)). Configuration is cascading: first settings are loaded from the config file and can then be overridden by command line parameters.

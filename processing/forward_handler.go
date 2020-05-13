@@ -1,9 +1,10 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, 2019, DCSO GmbH
+// Copyright (c) 2017, 2019, 2020, DCSO GmbH
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"net"
 	"sync"
@@ -29,7 +30,9 @@ type ForwardHandler struct {
 	DoRDNS              bool
 	RDNSHandler         *RDNSHandler
 	ContextCollector    *ContextCollector
+	StenosisConnector   *StenosisConnector
 	ForwardEventChan    chan []byte
+	FlowNotifyChan      chan types.Entry
 	OutputSocket        string
 	OutputConn          net.Conn
 	Reconnecting        bool
@@ -177,7 +180,8 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 	return fh
 }
 
-// Consume processes an Entry and forwards it
+// Consume processes an Entry and prepares it to be sent off to the
+// forwarding sink
 func (fh *ForwardHandler) Consume(e *types.Entry) error {
 	doForwardThis := util.ForwardAllEvents || util.AllowType(e.EventType)
 	if doForwardThis {
@@ -186,9 +190,11 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		if err != nil {
 			return err
 		}
+		// mark flow as relevant when alert is seen
 		if GlobalContextCollector != nil && e.EventType == types.EventTypeAlert {
 			GlobalContextCollector.Mark(string(e.FlowID))
 		}
+		// we also perform active rDNS enrichment if requested
 		if fh.DoRDNS && fh.RDNSHandler != nil {
 			err = fh.RDNSHandler.Consume(e)
 			if err != nil {
@@ -197,15 +203,21 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 			ev.SrcHost = e.SrcHosts
 			ev.DestHost = e.DestHosts
 		}
-		var jsonCopy []byte
-		jsonCopy, err = json.Marshal(ev)
-		if err != nil {
-			return err
+		// if we use Stenosis, the Stenosis connector will take ownership of
+		// alerts
+		if fh.StenosisConnector != nil && e.EventType == types.EventTypeAlert {
+			fh.StenosisConnector.Accept(e)
+		} else {
+			var jsonCopy []byte
+			jsonCopy, err = json.Marshal(ev)
+			if err != nil {
+				return err
+			}
+			fh.ForwardEventChan <- jsonCopy
+			fh.Lock.Lock()
+			fh.PerfStats.ForwardedPerSec++
+			fh.Lock.Unlock()
 		}
-		fh.ForwardEventChan <- jsonCopy
-		fh.Lock.Lock()
-		fh.PerfStats.ForwardedPerSec++
-		fh.Lock.Unlock()
 	}
 	return nil
 }
@@ -229,6 +241,14 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.DoRDNS = true
 	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamer(expiryPeriod, 2*expiryPeriod))
+}
+
+// EnableStenosis ...
+func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout, timeBracket time.Duration,
+	notifyChan chan types.Entry, cacheExpiry time.Duration, tlsConfig *tls.Config) (err error) {
+	fh.StenosisConnector, err = MakeStenosisConnector(endpoint, timeout, timeBracket,
+		notifyChan, fh.ForwardEventChan, cacheExpiry, tlsConfig)
+	return
 }
 
 // Run starts forwarding of JSON representations of all consumed events

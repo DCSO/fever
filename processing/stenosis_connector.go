@@ -56,8 +56,7 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 			return defaultStenosisTimeBracket
 		}(),
 		Timeout: timeout,
-		//TODO: make configurable
-		Cache: cache.New(alertCacheExpiry, 30*time.Second),
+		Cache:   cache.New(alertCacheExpiry, 30*time.Second),
 	}
 	dialOpts := make([]grpc.DialOption, 0, 1)
 	if tlsConfig != nil {

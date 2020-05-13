@@ -210,10 +210,12 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			}
 			stenosisTimeBracket := viper.GetDuration("stenosis.time-bracket")
 			stenosisTimeout := viper.GetDuration("stenosis.submission-timeout")
+			stenosisCacheExpiry := viper.GetDuration("stenosis.cache-expiry")
 			stenosisURL := viper.GetString("stenosis.submission-url")
 
 			if err := forwardHandler.(*processing.ForwardHandler).EnableStenosis(stenosisURL,
-				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, tlsConfig); err != nil {
+				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, stenosisCacheExpiry,
+				tlsConfig); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -651,6 +653,8 @@ func init() {
 	viper.BindPFlag("stenosis.root-cas", runCmd.PersistentFlags().Lookup("stenosis-root-cas"))
 	runCmd.PersistentFlags().DurationP("stenosis-submission-timeout", "", 5*time.Second, "timeout for connecting to Stenosis")
 	viper.BindPFlag("stenosis.submission-timeout", runCmd.PersistentFlags().Lookup("stenosis-submission-timeout"))
+	runCmd.PersistentFlags().DurationP("stenosis-cache-expiry", "", 30*time.Minute, "alert cache expiry timeout")
+	viper.BindPFlag("stenosis.cache-expiry", runCmd.PersistentFlags().Lookup("stenosis-cache-expiry"))
 
 	// Bloom filter alerting options
 	runCmd.PersistentFlags().StringP("bloom-file", "b", "", "Bloom filter for external indicator screening")

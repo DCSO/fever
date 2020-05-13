@@ -44,7 +44,7 @@ type StenosisConnector struct {
 // MakeStenosisConnector returns a new StenosisConnector for the
 // given parameters.
 func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
-	notifyChan chan types.Entry, forwardChan chan []byte,
+	notifyChan chan types.Entry, forwardChan chan []byte, alertCacheExpiry time.Duration,
 	tlsConfig *tls.Config) (*StenosisConnector, error) {
 	sConn := &StenosisConnector{
 		Endpoint:       endpoint,
@@ -57,7 +57,7 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 		}(),
 		Timeout: timeout,
 		//TODO: make configurable
-		Cache: cache.New(30*time.Minute, 30*time.Second),
+		Cache: cache.New(alertCacheExpiry, 30*time.Second),
 	}
 	dialOpts := make([]grpc.DialOption, 0, 1)
 	if tlsConfig != nil {

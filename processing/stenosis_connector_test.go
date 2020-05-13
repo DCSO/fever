@@ -110,7 +110,7 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 	fh.Run()
 
 	// fh.EnableStenosis(apiServer.URL, 2*time.Second, notifyChan, nil)
-	fh.EnableStenosis(grpcServer.Addr(), 2*time.Second, 10*time.Second, notifyChan, nil)
+	fh.EnableStenosis(grpcServer.Addr(), 2*time.Second, 10*time.Second, notifyChan, 10*time.Minute, nil)
 
 	// make alert
 	myTime, err := time.Parse(time.RFC3339, "2020-01-09T09:38:51+01:00")

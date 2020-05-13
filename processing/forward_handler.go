@@ -245,9 +245,9 @@ func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 
 // EnableStenosis ...
 func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout, timeBracket time.Duration,
-	notifyChan chan types.Entry, tlsConfig *tls.Config) (err error) {
+	notifyChan chan types.Entry, cacheExpiry time.Duration, tlsConfig *tls.Config) (err error) {
 	fh.StenosisConnector, err = MakeStenosisConnector(endpoint, timeout, timeBracket,
-		notifyChan, fh.ForwardEventChan, tlsConfig)
+		notifyChan, fh.ForwardEventChan, cacheExpiry, tlsConfig)
 	return
 }
 

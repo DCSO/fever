@@ -103,7 +103,11 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 								ev.ExtraInfo.StenosisInfo = outParsed
 							}
 							var jsonCopy []byte
-							jsonCopy, _ = json.Marshal(ev)
+							jsonCopy, err = json.Marshal(ev)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
 							forwardChan <- jsonCopy
 						}
 					}

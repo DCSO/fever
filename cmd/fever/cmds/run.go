@@ -204,9 +204,9 @@ func mainfunc(cmd *cobra.Command, args []string) {
 					viper.GetString("stenosis.client-key-file"),
 					viper.GetStringSlice("stenosis.root-cas"),
 					viper.GetBool("stenosis.skipverify"))
-			}
-			if err != nil {
-				log.Fatal(err)
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 			stenosisTimeBracket := viper.GetDuration("stenosis.time-bracket")
 			stenosisTimeout := viper.GetDuration("stenosis.submission-timeout")

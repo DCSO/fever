@@ -11,12 +11,13 @@ func _TestHostNamerQuad8(t *testing.T, ip string) {
 	hn := NewHostNamer(5*time.Second, 5*time.Second)
 	v, err := hn.GetHostname(ip)
 	if err != nil {
-		t.Fatal(err)
+		log.Info(err)
+		t.Skip()
 	}
 	if len(v) == 0 {
 		t.Fatal("no response")
 	} else {
-		log.Debugf("got response %v", v)
+		log.Infof("got response %v", v)
 	}
 	v, err = hn.GetHostname(ip)
 	if err != nil {
@@ -25,7 +26,7 @@ func _TestHostNamerQuad8(t *testing.T, ip string) {
 	if len(v) == 0 {
 		t.Fatal("no response")
 	} else {
-		log.Debugf("got response %v", v)
+		log.Infof("got response %v", v)
 	}
 	time.Sleep(6 * time.Second)
 	v, err = hn.GetHostname(ip)
@@ -35,7 +36,7 @@ func _TestHostNamerQuad8(t *testing.T, ip string) {
 	if len(v) == 0 {
 		t.Fatal("no response")
 	} else {
-		log.Debugf("got response %v", v)
+		log.Infof("got response %v", v)
 	}
 }
 

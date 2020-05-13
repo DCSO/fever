@@ -21,6 +21,8 @@ import (
 	"github.com/DCSO/fever/util"
 )
 
+// Currently unused. Keeping this here for future randomized tests.
+// Tests are rudimentary for now.
 // func makeAlertEntry(t *test.T, myTime time.Time, srcIP, dstIP string, srcPort, dstPort int) types.Entry {
 // 	eve := types.EveEvent{
 // 		SrcIP:    srcIP,
@@ -101,7 +103,7 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 		}
 	}
 
-	notifyChan := make(chan types.Entry, 0)
+	notifyChan := make(chan types.Entry)
 	// notifier := MakeFlowNotifier(notifyChan)
 
 	// start forwarding handler

@@ -8,6 +8,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,62 +78,74 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 		for flow := range sConn.FlowNotifyChan {
 			var myAlerts []types.Entry
 			aval, exist := sConn.Cache.Get(flow.FlowID)
-			if exist {
-				log.Debugf("flow with existing alert finished: %v", flow)
-				myAlerts = aval.([]types.Entry)
-				outParsed, err := sConn.submit(&flow)
-				if err != nil {
-					log.Error(err)
-					for _, a := range myAlerts {
-						forwardChan <- []byte(a.JSONLine)
-					}
-				} else {
-					if forwardChan != nil {
-						for _, a := range myAlerts {
-							var ev types.EveOutEvent
-							// annotate alerts with flows and forward
-							err := json.Unmarshal([]byte(a.JSONLine), &ev)
-							if err != nil {
-								log.Error(err)
-							}
-							if ev.ExtraInfo == nil {
-								ev.ExtraInfo = &types.ExtraInfo{
-									StenosisInfo: outParsed,
-								}
-							} else {
-								ev.ExtraInfo.StenosisInfo = outParsed
-							}
-							var jsonCopy []byte
-							jsonCopy, err = json.Marshal(ev)
-							if err != nil {
-								log.Error(err)
-								continue
-							}
-							forwardChan <- jsonCopy
-						}
-					}
-				}
-				sConn.Cache.Delete(flow.FlowID)
+			if !exist {
+				continue
 			}
+			log.Debugf("flow with existing alert finished: %v", flow)
+			myAlerts = aval.([]types.Entry)
+			outParsed, err := sConn.submit(&flow)
+			if err != nil {
+				// We had a problem contacting stenosis for tokens.
+				// Let's make sure that alerts are forwarded
+				// nevertheless -- their delivery has highest
+				// priority.
+				log.Error(err)
+				for _, a := range myAlerts {
+					forwardChan <- []byte(a.JSONLine)
+				}
+			} else if forwardChan != nil {
+				for _, a := range myAlerts {
+					var ev types.EveOutEvent
+					// annotate alerts with flows and forward
+					err := json.Unmarshal([]byte(a.JSONLine), &ev)
+					if err != nil {
+						// There's really not much we can do here. This
+						// case is highly unlikely since the JSON here
+						// comes from Suricata EVE (so not untrusted).
+						// In the unlikely case let's just log this and
+						// at least handle with the next alerts.
+						log.Error(err)
+						continue
+					}
+					if ev.ExtraInfo == nil {
+						ev.ExtraInfo = &types.ExtraInfo{
+							StenosisInfo: outParsed,
+						}
+					} else {
+						ev.ExtraInfo.StenosisInfo = outParsed
+					}
+					var jsonCopy []byte
+					jsonCopy, err = json.Marshal(ev)
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					forwardChan <- jsonCopy
+				}
+			}
+			sConn.Cache.Delete(flow.FlowID)
 		}
 	}()
 	return sConn, nil
 }
 
+// handleError wraps error reporting to only process up to a maximum
+// number of error messages at a time. This is meant to make sure that
+// if stenosis is not reachable for a long time, disks do not run full
+// of error logs. Output is re-enabled after the first successful query.
 func (s *StenosisConnector) handleError(err error) error {
-	s.ErrorCount++
 	if s.ErrorCount == maxErrorCount {
 		log.Warning("maximum reported error count exceeded, disabling output")
 		return nil
-	} else if s.ErrorCount > maxErrorCount {
-		return nil
-	} else {
-		return err
 	}
+	s.ErrorCount++
+	return err
 }
 
+// resetErrors re-enables error reporting when it was disabled by
+// handleError().
 func (s *StenosisConnector) resetErrors() {
-	if s.ErrorCount > maxErrorCount {
+	if s.ErrorCount >= maxErrorCount {
 		log.Warning("re-enabling error reporting")
 	}
 	s.ErrorCount = 0
@@ -143,8 +157,6 @@ func (s *StenosisConnector) Accept(e *types.Entry) {
 	aval, exist := s.Cache.Get(e.FlowID)
 	if exist {
 		myAlerts = aval.([]types.Entry)
-	} else {
-		myAlerts = make([]types.Entry, 0)
 	}
 	myAlerts = append(myAlerts, *e)
 	s.Cache.Set(e.FlowID, myAlerts, cache.DefaultExpiration)
@@ -161,15 +173,17 @@ func (s *StenosisConnector) submit(e *types.Entry) (interface{}, error) {
 		Type: task.QueryType_FLOW_PARAM,
 		Content: &task.Query_FlowParam{FlowParam: &task.FlowParam{
 			Network:     strings.ToLower(ev.Proto),
-			SrcHostPort: fmt.Sprintf("%s:%d", ev.SrcIP, ev.SrcPort),
-			DstHostPort: fmt.Sprintf("%s:%d", ev.DestIP, ev.DestPort),
+			SrcHostPort: net.JoinHostPort(ev.SrcIP, strconv.Itoa(ev.SrcPort)),
+			DstHostPort: net.JoinHostPort(ev.DestIP, strconv.Itoa(ev.DestPort)),
 		}},
 	}
-	if ev.Flow != nil && ev.Flow.Start != nil {
-		query.AfterTime, _ = ptypes.TimestampProto(ev.Flow.Start.Time.Add(-s.TimeBracket))
-	}
-	if ev.Flow != nil && ev.Flow.End != nil {
-		query.BeforeTime, _ = ptypes.TimestampProto(ev.Flow.End.Time.Add(s.TimeBracket))
+	if ev.Flow != nil {
+		if ev.Flow.Start != nil {
+			query.AfterTime, _ = ptypes.TimestampProto(ev.Flow.Start.Time.Add(-s.TimeBracket))
+		}
+		if ev.Flow.End != nil {
+			query.BeforeTime, _ = ptypes.TimestampProto(ev.Flow.End.Time.Add(s.TimeBracket))
+		}
 	}
 	// prepare context
 	ctx := context.Background()

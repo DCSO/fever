@@ -277,7 +277,7 @@ func RandStringBytesMaskImprSrc(n int) string {
 func MakeTLSConfig(certFile, keyFile string, rcas []string, skipVerify bool) (*tls.Config, error) {
 	certs := make([]tls.Certificate, 0, 1)
 
-	if certFile != "" || keyFile != "" {
+	if certFile != "" && keyFile != "" {
 		c, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
 			return nil, err

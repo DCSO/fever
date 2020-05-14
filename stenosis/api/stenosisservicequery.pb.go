@@ -175,9 +175,7 @@ func init() {
 	proto.RegisterType((*QueryResponse)(nil), "api.QueryResponse")
 }
 
-func init() {
-	proto.RegisterFile("api/stenosisservicequery.proto", fileDescriptor_b7526d43675a233f)
-}
+func init() { proto.RegisterFile("api/stenosisservicequery.proto", fileDescriptor_b7526d43675a233f) }
 
 var fileDescriptor_b7526d43675a233f = []byte{
 	// 268 bytes of a gzipped FileDescriptorProto
@@ -202,11 +200,11 @@ var fileDescriptor_b7526d43675a233f = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // StenosisServiceQueryClient is the client API for StenosisServiceQuery service.
 //
@@ -221,10 +219,10 @@ type StenosisServiceQueryClient interface {
 }
 
 type stenosisServiceQueryClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewStenosisServiceQueryClient(cc grpc.ClientConnInterface) StenosisServiceQueryClient {
+func NewStenosisServiceQueryClient(cc *grpc.ClientConn) StenosisServiceQueryClient {
 	return &stenosisServiceQueryClient{cc}
 }
 

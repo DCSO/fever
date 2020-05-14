@@ -135,9 +135,7 @@ func init() {
 	proto.RegisterType((*Hateoas)(nil), "api.Hateoas")
 }
 
-func init() {
-	proto.RegisterFile("api/hateoas.proto", fileDescriptor_3ae5b8d6f8929caf)
-}
+func init() { proto.RegisterFile("api/hateoas.proto", fileDescriptor_3ae5b8d6f8929caf) }
 
 var fileDescriptor_3ae5b8d6f8929caf = []byte{
 	// 196 bytes of a gzipped FileDescriptorProto

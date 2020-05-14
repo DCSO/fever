@@ -208,8 +208,7 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		if fh.StenosisConnector != nil && e.EventType == types.EventTypeAlert {
 			fh.StenosisConnector.Accept(e)
 		} else {
-			var jsonCopy []byte
-			jsonCopy, err = json.Marshal(ev)
+			jsonCopy, err := json.Marshal(ev)
 			if err != nil {
 				return err
 			}

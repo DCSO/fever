@@ -1,14 +1,16 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2019, DCSO GmbH
+// Copyright (c) 2019, 2020, DCSO GmbH
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yl2chen/cidranger"
@@ -71,7 +73,9 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 			if !a.PrivateRangesOnly || isPrivate {
 				res, err = a.HostNamer.GetHostname(e.SrcIP)
 				if err == nil {
-					e.SrcHosts = res
+					for i, v := range res {
+						jsonparser.Set([]byte(e.JSONLine), []byte(v), "src_host", fmt.Sprintf("[%d]", i))
+					}
 				}
 			}
 		} else {
@@ -88,7 +92,9 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 			if !a.PrivateRangesOnly || isPrivate {
 				res, err = a.HostNamer.GetHostname(e.DestIP)
 				if err == nil {
-					e.DestHosts = res
+					for i, v := range res {
+						jsonparser.Set([]byte(e.JSONLine), []byte(v), "dest_host", fmt.Sprintf("[%d]", i))
+					}
 				}
 			}
 		} else {

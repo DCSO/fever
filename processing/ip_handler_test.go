@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2018, DCSO GmbH
+// Copyright (c) 2018, 2020, DCSO GmbH
 
 import (
 	"bufio"
@@ -40,6 +40,9 @@ func makeIPHTTPEvent(srcip string, dstip string) types.Entry {
 		HTTPMethod: "GET",
 	}
 	eve := types.EveEvent{
+		Timestamp: &types.SuriTime{
+			Time: time.Now(),
+		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
 		SrcPort:   int(e.SrcPort),
@@ -74,7 +77,6 @@ func (h *IPCollectorHandler) GetEventTypes() []string {
 }
 
 func (h *IPCollectorHandler) Consume(e *types.Entry) error {
-	log.Info(e.JSONLine)
 	match := reIPmsg.FindStringSubmatch(e.JSONLine)
 	if match != nil {
 		h.Entries = append(h.Entries, e.JSONLine)
@@ -135,6 +137,16 @@ func TestIPHandler(t *testing.T) {
 	if len(fwhandler.Entries) < 2 {
 		t.Fatalf("expected %d forwarded BLF alerts, seen less (%d)", 2,
 			len(fwhandler.Entries))
+	}
+
+	var i interface{}
+	err := json.Unmarshal([]byte(fwhandler.Entries[0]), &i)
+	if err != nil {
+		t.Fatalf("could not unmarshal JSON: %s", err.Error())
+	}
+	err = json.Unmarshal([]byte(fwhandler.Entries[1]), &i)
+	if err != nil {
+		t.Fatalf("could not unmarshal JSON: %s", err.Error())
 	}
 }
 
@@ -203,6 +215,15 @@ func TestIPHandlerFromFile(t *testing.T) {
 			len(fwhandler.Entries))
 	}
 
+	var i interface{}
+	err = json.Unmarshal([]byte(fwhandler.Entries[0]), &i)
+	if err != nil {
+		t.Fatalf("could not unmarshal JSON: %s", err.Error())
+	}
+	err = json.Unmarshal([]byte(fwhandler.Entries[1]), &i)
+	if err != nil {
+		t.Fatalf("could not unmarshal JSON: %s", err.Error())
+	}
 }
 
 func TestIPHandlerFromFileInvalidFormat(t *testing.T) {

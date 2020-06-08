@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, 2019, DCSO GmbH
+// Copyright (c) 2017, 2020, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -46,6 +46,9 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 		DNSType:   []string{"answer", "query"}[rand.Intn(2)],
 	}
 	eve := types.EveEvent{
+		Timestamp: &types.SuriTime{
+			Time: time.Now(),
+		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
 		SrcPort:   int(e.SrcPort),
@@ -83,6 +86,9 @@ func makeBloomHTTPEvent(host string, url string) types.Entry {
 		HTTPMethod: "GET",
 	}
 	eve := types.EveEvent{
+		Timestamp: &types.SuriTime{
+			Time: time.Now(),
+		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
 		SrcPort:   int(e.SrcPort),
@@ -115,6 +121,9 @@ func makeBloomTLSEvent(host string) types.Entry {
 		TLSSni:    host,
 	}
 	eve := types.EveEvent{
+		Timestamp: &types.SuriTime{
+			Time: time.Now(),
+		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
 		SrcPort:   int(e.SrcPort),

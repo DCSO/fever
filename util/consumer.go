@@ -142,13 +142,13 @@ func (c *Consumer) Shutdown() error {
 	return <-c.done
 }
 
-const MAX_LOG_LEN = 100
+const maxLogLen = 100
 
 func handle(deliveries <-chan wabbit.Delivery, done chan error, callback func(wabbit.Delivery)) {
 	for d := range deliveries {
 		v := d.Body()
-		if len(v) > MAX_LOG_LEN {
-			v = v[:MAX_LOG_LEN]
+		if len(v) > maxLogLen {
+			v = v[:maxLogLen]
 		}
 		log.Debugf(
 			"got %dB delivery: [%v] %q",

@@ -30,11 +30,11 @@ type mockGRPCServerOptionFunc func(*mockGRPCServer)
 
 type mockGRPCServerTokenGenFunc func(*task.Query) string
 
-func mockGRPCServerFailOption(meth string, err error) mockGRPCServerOptionFunc {
-	return func(m *mockGRPCServer) {
-		m.failWith[meth] = err
-	}
-}
+//func mockGRPCServerFailOption(meth string, err error) mockGRPCServerOptionFunc {
+//	return func(m *mockGRPCServer) {
+//		m.failWith[meth] = err
+//	}
+//}
 
 func mockGRPCServerDefaultTokenGen(query *task.Query) string {
 	switch query.GetType() {

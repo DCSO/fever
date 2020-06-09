@@ -19,11 +19,11 @@ import (
 )
 
 var sigs = map[string]string{
-	"http-url":  "\"%s Possibly bad HTTP URL: %s\"",
-	"http-host": "\"%s Possibly bad HTTP host: %s\"",
-	"tls-sni":   "\"%s Possibly bad TLS SNI: %s\"",
-	"dns-req":   "\"%s Possibly bad DNS lookup to %s\"",
-	"dns-resp":  "\"%s Possibly bad DNS response for %s\"",
+	"http-url":  "%s Possibly bad HTTP URL: %s",
+	"http-host": "%s Possibly bad HTTP host: %s",
+	"tls-sni":   "%s Possibly bad TLS SNI: %s",
+	"dns-req":   "%s Possibly bad DNS lookup to %s",
+	"dns-resp":  "%s Possibly bad DNS response for %s",
 }
 
 // MakeAlertEntryForHit returns an alert Entry as raised by an external
@@ -42,7 +42,7 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc s
 	} else if eType == "tls-sni" {
 		value = e.TLSSni
 	}
-	var sig = "\"%s Possibly bad traffic: %s\""
+	var sig = "%s Possibly bad traffic: %s"
 	if v, ok := sigs[eType]; ok {
 		sig = v
 	}
@@ -66,17 +66,27 @@ func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc s
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte(fmt.Sprintf("\"%s\"", ioc)), "_extra", "bloom-ioc")
+	val, err := util.EscapeJSON(ioc)
 	if err != nil {
-		log.Warning(err)
+		log.Warningf("cannot escape IOC '%s': %s", ioc, err.Error())
 	} else {
-		newEntry.JSONLine = string(l)
+		l, err = jsonparser.Set([]byte(newEntry.JSONLine), val, "_extra", "bloom-ioc")
+		if err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
+		}
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte(fmt.Sprintf(sig, alertPrefix, value)), "alert", "signature")
+	msg, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, value))
 	if err != nil {
-		log.Warning(err)
+		log.Warningf("cannot escape signature msg for value '%s': %s", value, err.Error())
 	} else {
-		newEntry.JSONLine = string(l)
+		l, err = jsonparser.Set([]byte(newEntry.JSONLine), msg, "alert", "signature")
+		if err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
+		}
 	}
 
 	return newEntry

@@ -6,6 +6,7 @@ package util
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -47,6 +48,15 @@ var evekeys = [][]string{
 	[]string{"dns", "version"},         // 20
 	[]string{"dns", "answers"},         // 21
 	[]string{"flow_id"},                // 22
+}
+
+// EscapeJSON escapes a string as a quoted byte slice for direct use in jsonparser.Set().
+func EscapeJSON(i string) ([]byte, error) {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return []byte(""), err
+	}
+	return b, nil
 }
 
 // ParseJSON extracts relevant fields from an EVE JSON entry into an Entry struct.

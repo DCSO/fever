@@ -16,6 +16,7 @@ import (
 	"github.com/DCSO/fever/stenosis/api"
 	"github.com/DCSO/fever/stenosis/task"
 	"github.com/DCSO/fever/types"
+	"github.com/DCSO/fever/util"
 	"github.com/buger/jsonparser"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
@@ -98,9 +99,13 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 				for _, a := range myAlerts {
 					// annotate alerts with tokens and forward
 					if len(outParsed.Token) > 0 {
+						escToken, err := util.EscapeJSON(outParsed.Token)
+						if err != nil {
+							log.Warningf("cannot escape Stenosis token: %s", outParsed.Token)
+							continue
+						}
 						tmpLine, err := jsonparser.Set([]byte(a.JSONLine),
-							[]byte(fmt.Sprintf("\"%s\"", outParsed.Token)),
-							"_extra", "stenosis-info", "token")
+							escToken, "_extra", "stenosis-info", "token")
 						if err != nil {
 							log.Warningf("error adding Stenosis token: %s", err.Error())
 						} else {

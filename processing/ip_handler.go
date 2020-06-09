@@ -23,7 +23,7 @@ import (
 // as well as its timestamp.
 func MakeIPAlertEntryForHit(e types.Entry, matchedIP string,
 	rangerEntry cidranger.RangerEntry, alertPrefix string) types.Entry {
-	sig := "\"%s Communication involving IP %s in listed range %s\""
+	sig := `%s Communication involving IP %s in listed range %s`
 	matchedNet := rangerEntry.Network()
 	matchedNetString := matchedNet.String()
 
@@ -47,11 +47,17 @@ func MakeIPAlertEntryForHit(e types.Entry, matchedIP string,
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte(fmt.Sprintf(sig, alertPrefix, matchedIP, matchedNetString)), "alert", "signature")
+	signature, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, matchedIP, matchedNetString))
 	if err != nil {
 		log.Warning(err)
+
 	} else {
-		newEntry.JSONLine = string(l)
+		l, err = jsonparser.Set([]byte(newEntry.JSONLine), signature, "alert", "signature")
+		if err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
+		}
 	}
 
 	return newEntry

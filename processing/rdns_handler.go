@@ -22,13 +22,13 @@ import (
 type RDNSHandler struct {
 	sync.Mutex
 	Logger            *log.Entry
-	HostNamer         *util.HostNamer
+	HostNamer         util.HostNamer
 	PrivateRanges     cidranger.Ranger
 	PrivateRangesOnly bool
 }
 
 // MakeRDNSHandler returns a new RDNSHandler, backed by the passed HostNamer.
-func MakeRDNSHandler(hn *util.HostNamer) *RDNSHandler {
+func MakeRDNSHandler(hn util.HostNamer) *RDNSHandler {
 	rh := &RDNSHandler{
 		Logger: log.WithFields(log.Fields{
 			"domain": "rdns",
@@ -74,7 +74,19 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 				res, err = a.HostNamer.GetHostname(e.SrcIP)
 				if err == nil {
 					for i, v := range res {
-						jsonparser.Set([]byte(e.JSONLine), []byte(v), "src_host", fmt.Sprintf("[%d]", i))
+						hostname, err := util.EscapeJSON(v)
+						if err != nil {
+							log.Warningf("cannot escape hostname: %s", v)
+							continue
+						}
+						newJSON, err := jsonparser.Set([]byte(e.JSONLine), hostname,
+							"src_host", fmt.Sprintf("[%d]", i), "rdns")
+						if err != nil {
+							log.Warningf("cannot set hostname: %s", hostname)
+							continue
+						} else {
+							e.JSONLine = string(newJSON)
+						}
 					}
 				}
 			}
@@ -93,7 +105,19 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 				res, err = a.HostNamer.GetHostname(e.DestIP)
 				if err == nil {
 					for i, v := range res {
-						jsonparser.Set([]byte(e.JSONLine), []byte(v), "dest_host", fmt.Sprintf("[%d]", i))
+						hostname, err := util.EscapeJSON(v)
+						if err != nil {
+							log.Warningf("cannot escape hostname: %s", v)
+							continue
+						}
+						newJSON, err := jsonparser.Set([]byte(e.JSONLine), hostname,
+							"dest_host", fmt.Sprintf("[%d]", i), "rdns")
+						if err != nil {
+							log.Warningf("cannot set hostname: %s", hostname)
+							continue
+						} else {
+							e.JSONLine = string(newJSON)
+						}
 					}
 				}
 			}

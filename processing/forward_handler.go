@@ -227,7 +227,7 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 // IPs in outgoing EVE events.
 func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.DoRDNS = true
-	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamer(expiryPeriod, 2*expiryPeriod))
+	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamerRDNS(expiryPeriod, 2*expiryPeriod))
 }
 
 // EnableStenosis ...

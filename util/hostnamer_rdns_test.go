@@ -8,7 +8,7 @@ import (
 )
 
 func _TestHostNamerQuad8(t *testing.T, ip string) {
-	hn := NewHostNamer(5*time.Second, 5*time.Second)
+	hn := NewHostNamerRDNS(5*time.Second, 5*time.Second)
 	v, err := hn.GetHostname(ip)
 	if err != nil {
 		log.Info(err)
@@ -49,7 +49,7 @@ func TestHostNamerQuad8v6(t *testing.T) {
 }
 
 func TestHostNamerInvalid(t *testing.T) {
-	hn := NewHostNamer(5*time.Second, 5*time.Second)
+	hn := NewHostNamerRDNS(5*time.Second, 5*time.Second)
 	_, err := hn.GetHostname("8.")
 	if err == nil {
 		t.Fatal("missed error")

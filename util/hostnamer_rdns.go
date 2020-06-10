@@ -12,24 +12,24 @@ import (
 // HostNamerRDNS is a component that provides cached hostnames for IP
 // addresses passed as strings, determined via reverse DNS lookups.
 type HostNamerRDNS struct {
-	Cache *cache.Cache
-	Lock  sync.Mutex
+	cache *cache.Cache
+	lock  sync.Mutex
 }
 
 // NewHostNamerRDNS returns a new HostNamer with the given default expiration time.
 // Data entries will be purged after each cleanupInterval.
 func NewHostNamerRDNS(defaultExpiration, cleanupInterval time.Duration) *HostNamerRDNS {
 	return &HostNamerRDNS{
-		Cache: cache.New(defaultExpiration, cleanupInterval),
+		cache: cache.New(defaultExpiration, cleanupInterval),
 	}
 }
 
 // GetHostname returns a list of host names for a given IP address.
 func (n *HostNamerRDNS) GetHostname(ipAddr string) ([]string, error) {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
+	n.lock.Lock()
+	defer n.lock.Unlock()
 
-	val, found := n.Cache.Get(ipAddr)
+	val, found := n.cache.Get(ipAddr)
 	if found {
 		return val.([]string), nil
 	}
@@ -40,12 +40,12 @@ func (n *HostNamerRDNS) GetHostname(ipAddr string) ([]string, error) {
 	for i, hn := range hns {
 		hns[i] = strings.TrimRight(hn, ".")
 	}
-	n.Cache.Set(ipAddr, hns, cache.DefaultExpiration)
+	n.cache.Set(ipAddr, hns, cache.DefaultExpiration)
 	val = hns
 	return val.([]string), nil
 }
 
 // Flush clears the cache of a HostNamerRDNS.
 func (n *HostNamerRDNS) Flush() {
-	n.Cache.Flush()
+	n.cache.Flush()
 }

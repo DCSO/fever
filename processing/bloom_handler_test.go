@@ -47,7 +47,7 @@ func makeBloomDNSEvent(rrname string) types.Entry {
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
-			Time: time.Now(),
+			Time: time.Now().UTC(),
 		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
@@ -87,7 +87,7 @@ func makeBloomHTTPEvent(host string, url string) types.Entry {
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
-			Time: time.Now(),
+			Time: time.Now().UTC(),
 		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
@@ -122,7 +122,7 @@ func makeBloomTLSEvent(host string) types.Entry {
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
-			Time: time.Now(),
+			Time: time.Now().UTC(),
 		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,

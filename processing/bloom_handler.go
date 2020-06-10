@@ -31,58 +31,64 @@ var sigs = map[string]string{
 // the triggering event's metadata (e.g. 'dns' or 'http' objects) as well as
 // its timestamp.
 func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc string) types.Entry {
-
 	var value string
-	if eType == "http-url" {
+
+	switch {
+	case eType == "http-url":
 		value = fmt.Sprintf("%s | %s | %s", e.HTTPMethod, e.HTTPHost, e.HTTPUrl)
-	} else if eType == "http-host" {
+	case eType == "http-host":
 		value = e.HTTPHost
-	} else if strings.HasPrefix(eType, "dns") {
+	case strings.HasPrefix(eType, "dns"):
 		value = e.DNSRRName
-	} else if eType == "tls-sni" {
+	case eType == "tls-sni":
 		value = e.TLSSni
 	}
+
 	var sig = "%s Possibly bad traffic: %s"
 	if v, ok := sigs[eType]; ok {
 		sig = v
 	}
+
 	newEntry := e
 	newEntry.EventType = "alert"
-	l, err := jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"alert\""), "event_type")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"allowed\""), "alert", "action")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"allowed"`), "alert", "action"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"Potentially Bad Traffic\""), "alert", "category")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"Potentially Bad Traffic"`), "alert", "category"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	val, err := util.EscapeJSON(ioc)
-	if err != nil {
+
+	if val, err := util.EscapeJSON(ioc); err != nil {
 		log.Warningf("cannot escape IOC '%s': %s", ioc, err.Error())
 	} else {
-		l, err = jsonparser.Set([]byte(newEntry.JSONLine), val, "_extra", "bloom-ioc")
-		if err != nil {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+			val, "_extra", "bloom-ioc"); err != nil {
 			log.Warning(err)
 		} else {
 			newEntry.JSONLine = string(l)
 		}
 	}
-	msg, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, value))
-	if err != nil {
+
+	if msg, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, value)); err != nil {
 		log.Warningf("cannot escape signature msg for value '%s': %s", value, err.Error())
 	} else {
-		l, err = jsonparser.Set([]byte(newEntry.JSONLine), msg, "alert", "signature")
-		if err != nil {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine), msg,
+			"alert", "signature"); err != nil {
 			log.Warning(err)
 		} else {
 			newEntry.JSONLine = string(l)

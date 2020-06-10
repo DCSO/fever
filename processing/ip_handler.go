@@ -29,31 +29,35 @@ func MakeIPAlertEntryForHit(e types.Entry, matchedIP string,
 
 	newEntry := e
 	newEntry.EventType = "alert"
-	l, err := jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"alert\""), "event_type")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"allowed\""), "alert", "action")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"allowed"`), "alert", "action"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine), []byte("\"Potentially Bad Traffic\""), "alert", "category")
-	if err != nil {
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"Potentially Bad Traffic"`), "alert", "category"); err != nil {
 		log.Warning(err)
 	} else {
 		newEntry.JSONLine = string(l)
 	}
-	signature, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, matchedIP, matchedNetString))
-	if err != nil {
+
+	if signature, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix,
+		matchedIP, matchedNetString)); err != nil {
 		log.Warning(err)
 
 	} else {
-		l, err = jsonparser.Set([]byte(newEntry.JSONLine), signature, "alert", "signature")
-		if err != nil {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine), signature,
+			"alert", "signature"); err != nil {
 			log.Warning(err)
 		} else {
 			newEntry.JSONLine = string(l)

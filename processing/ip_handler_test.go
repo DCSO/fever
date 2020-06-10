@@ -41,7 +41,7 @@ func makeIPHTTPEvent(srcip string, dstip string) types.Entry {
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
-			Time: time.Now(),
+			Time: time.Now().UTC(),
 		},
 		EventType: e.EventType,
 		SrcIP:     e.SrcIP,
@@ -139,12 +139,13 @@ func TestIPHandler(t *testing.T) {
 			len(fwhandler.Entries))
 	}
 
-	var i interface{}
-	err := json.Unmarshal([]byte(fwhandler.Entries[0]), &i)
+	// check that the result is indeed valid JSON again
+	var result interface{}
+	err := json.Unmarshal([]byte(fwhandler.Entries[0]), &result)
 	if err != nil {
 		t.Fatalf("could not unmarshal JSON: %s", err.Error())
 	}
-	err = json.Unmarshal([]byte(fwhandler.Entries[1]), &i)
+	err = json.Unmarshal([]byte(fwhandler.Entries[1]), &result)
 	if err != nil {
 		t.Fatalf("could not unmarshal JSON: %s", err.Error())
 	}

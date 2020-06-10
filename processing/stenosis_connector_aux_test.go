@@ -1,5 +1,8 @@
 package processing
 
+// DCSO FEVER
+// Copyright (c) 2020, DCSO GmbH
+
 import (
 	"context"
 	"fmt"
@@ -16,9 +19,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// DCSO FEVER
-// Copyright (c) 2020, DCSO GmbH
-
 const (
 	mockGRPCServerMethNewMockGRPCServer = "newMockGRPCServer"
 	mockGRPCServerMethAlive             = "Alive"
@@ -29,12 +29,6 @@ const (
 type mockGRPCServerOptionFunc func(*mockGRPCServer)
 
 type mockGRPCServerTokenGenFunc func(*task.Query) string
-
-func mockGRPCServerFailOption(meth string, err error) mockGRPCServerOptionFunc {
-	return func(m *mockGRPCServer) {
-		m.failWith[meth] = err
-	}
-}
 
 func mockGRPCServerDefaultTokenGen(query *task.Query) string {
 	switch query.GetType() {

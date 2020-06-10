@@ -1,10 +1,9 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, 2019, DCSO GmbH
+// Copyright (c) 2017, 2020, DCSO GmbH
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -13,17 +12,18 @@ import (
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 
 	"github.com/DCSO/bloom"
 	log "github.com/sirupsen/logrus"
 )
 
 var sigs = map[string]string{
-	"http-url":  "%s Possibly bad HTTP URL: ",
-	"http-host": "%s Possibly bad HTTP host: ",
-	"tls-sni":   "%s Possibly bad TLS SNI: ",
-	"dns-req":   "%s Possibly bad DNS lookup to ",
-	"dns-resp":  "%s Possibly bad DNS response for ",
+	"http-url":  "%s Possibly bad HTTP URL: %s",
+	"http-host": "%s Possibly bad HTTP host: %s",
+	"tls-sni":   "%s Possibly bad TLS SNI: %s",
+	"dns-req":   "%s Possibly bad DNS lookup to %s",
+	"dns-resp":  "%s Possibly bad DNS response for %s",
 }
 
 // MakeAlertEntryForHit returns an alert Entry as raised by an external
@@ -31,60 +31,69 @@ var sigs = map[string]string{
 // the triggering event's metadata (e.g. 'dns' or 'http' objects) as well as
 // its timestamp.
 func MakeAlertEntryForHit(e types.Entry, eType string, alertPrefix string, ioc string) types.Entry {
-	var eve types.EveEvent
-	var newEve types.EveEvent
-	var err = json.Unmarshal([]byte(e.JSONLine), &eve)
-	if err != nil {
-		log.Warn(err, e.JSONLine)
-	} else {
-		var value string
-		if eType == "http-url" {
-			value = fmt.Sprintf("%s | %s | %s", e.HTTPMethod, e.HTTPHost, e.HTTPUrl)
-		} else if eType == "http-host" {
-			value = e.HTTPHost
-		} else if strings.HasPrefix(eType, "dns") {
-			value = e.DNSRRName
-		} else if eType == "tls-sni" {
-			value = e.TLSSni
-		}
-		var sig = "%s Possibly bad traffic: "
-		if v, ok := sigs[eType]; ok {
-			sig = v
-		}
-		newEve = types.EveEvent{
-			EventType: "alert",
-			Alert: &types.AlertEvent{
-				Action:    "allowed",
-				Category:  "Potentially Bad Traffic",
-				Signature: fmt.Sprintf(sig, alertPrefix) + value,
-			},
-			FlowID:     eve.FlowID,
-			Stream:     eve.Stream,
-			InIface:    eve.InIface,
-			SrcIP:      eve.SrcIP,
-			SrcPort:    eve.SrcPort,
-			DestIP:     eve.DestIP,
-			DestPort:   eve.DestPort,
-			Proto:      eve.Proto,
-			TxID:       eve.TxID,
-			Timestamp:  eve.Timestamp,
-			PacketInfo: eve.PacketInfo,
-			HTTP:       eve.HTTP,
-			DNS:        eve.DNS,
-			TLS:        eve.TLS,
-			ExtraInfo: &types.ExtraInfo{
-				BloomIOC: ioc,
-			},
-		}
+	var value string
+
+	switch {
+	case eType == "http-url":
+		value = fmt.Sprintf("%s | %s | %s", e.HTTPMethod, e.HTTPHost, e.HTTPUrl)
+	case eType == "http-host":
+		value = e.HTTPHost
+	case strings.HasPrefix(eType, "dns"):
+		value = e.DNSRRName
+	case eType == "tls-sni":
+		value = e.TLSSni
 	}
+
+	var sig = "%s Possibly bad traffic: %s"
+	if v, ok := sigs[eType]; ok {
+		sig = v
+	}
+
 	newEntry := e
-	json, err := json.Marshal(newEve)
-	if err != nil {
-		log.Warn(err)
-	} else {
-		newEntry.JSONLine = string(json)
-	}
 	newEntry.EventType = "alert"
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type"); err != nil {
+		log.Warning(err)
+	} else {
+		newEntry.JSONLine = string(l)
+	}
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"allowed"`), "alert", "action"); err != nil {
+		log.Warning(err)
+	} else {
+		newEntry.JSONLine = string(l)
+	}
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"Potentially Bad Traffic"`), "alert", "category"); err != nil {
+		log.Warning(err)
+	} else {
+		newEntry.JSONLine = string(l)
+	}
+
+	if val, err := util.EscapeJSON(ioc); err != nil {
+		log.Warningf("cannot escape IOC '%s': %s", ioc, err.Error())
+	} else {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+			val, "_extra", "bloom-ioc"); err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
+		}
+	}
+
+	if msg, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix, value)); err != nil {
+		log.Warningf("cannot escape signature msg for value '%s': %s", value, err.Error())
+	} else {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine), msg,
+			"alert", "signature"); err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
+		}
+	}
 
 	return newEntry
 }

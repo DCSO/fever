@@ -1,14 +1,16 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2019, DCSO GmbH
+// Copyright (c) 2019, 2020, DCSO GmbH
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yl2chen/cidranger"
@@ -20,13 +22,13 @@ import (
 type RDNSHandler struct {
 	sync.Mutex
 	Logger            *log.Entry
-	HostNamer         *util.HostNamer
+	HostNamer         util.HostNamer
 	PrivateRanges     cidranger.Ranger
 	PrivateRangesOnly bool
 }
 
 // MakeRDNSHandler returns a new RDNSHandler, backed by the passed HostNamer.
-func MakeRDNSHandler(hn *util.HostNamer) *RDNSHandler {
+func MakeRDNSHandler(hn util.HostNamer) *RDNSHandler {
 	rh := &RDNSHandler{
 		Logger: log.WithFields(log.Fields{
 			"domain": "rdns",
@@ -71,7 +73,21 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 			if !a.PrivateRangesOnly || isPrivate {
 				res, err = a.HostNamer.GetHostname(e.SrcIP)
 				if err == nil {
-					e.SrcHosts = res
+					for i, v := range res {
+						hostname, err := util.EscapeJSON(v)
+						if err != nil {
+							log.Warningf("cannot escape hostname: %s", v)
+							continue
+						}
+						newJSON, err := jsonparser.Set([]byte(e.JSONLine), hostname,
+							"src_host", fmt.Sprintf("[%d]", i), "rdns")
+						if err != nil {
+							log.Warningf("cannot set hostname: %s", hostname)
+							continue
+						} else {
+							e.JSONLine = string(newJSON)
+						}
+					}
 				}
 			}
 		} else {
@@ -88,7 +104,21 @@ func (a *RDNSHandler) Consume(e *types.Entry) error {
 			if !a.PrivateRangesOnly || isPrivate {
 				res, err = a.HostNamer.GetHostname(e.DestIP)
 				if err == nil {
-					e.DestHosts = res
+					for i, v := range res {
+						hostname, err := util.EscapeJSON(v)
+						if err != nil {
+							log.Warningf("cannot escape hostname: %s", v)
+							continue
+						}
+						newJSON, err := jsonparser.Set([]byte(e.JSONLine), hostname,
+							"dest_host", fmt.Sprintf("[%d]", i), "rdns")
+						if err != nil {
+							log.Warningf("cannot set hostname: %s", hostname)
+							continue
+						} else {
+							e.JSONLine = string(newJSON)
+						}
+					}
 				}
 			}
 		} else {

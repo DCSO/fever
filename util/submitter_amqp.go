@@ -1,7 +1,7 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, 2019, DCSO GmbH
+// Copyright (c) 2017, 2020, DCSO GmbH
 
 import (
 	"bytes"
@@ -219,7 +219,7 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 
 // Finish cleans up the AMQP connection (reference counted).
 func (s *AMQPSubmitter) Finish() {
-	s.Submitter.Logger.Debugf("finishing submitter %v -> %v", s, s.Submitter)
+	s.Submitter.Logger.Debugf("finishing submitter %s (%s)", s.Submitter.URL, s.Target)
 	if s.Submitter.NofSubmitters == 1 {
 		close(s.Submitter.StopReconnection)
 		if s.Submitter.Verbose {

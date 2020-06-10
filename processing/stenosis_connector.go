@@ -16,6 +16,8 @@ import (
 	"github.com/DCSO/fever/stenosis/api"
 	"github.com/DCSO/fever/stenosis/task"
 	"github.com/DCSO/fever/types"
+	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -95,32 +97,24 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 				}
 			} else if forwardChan != nil {
 				for _, a := range myAlerts {
-					var ev types.EveOutEvent
-					// annotate alerts with flows and forward
-					err := json.Unmarshal([]byte(a.JSONLine), &ev)
-					if err != nil {
-						// There's really not much we can do here. This
-						// case is highly unlikely since the JSON here
-						// comes from Suricata EVE (so not untrusted).
-						// In the unlikely case let's just log this and
-						// at least handle with the next alerts.
-						log.Error(err)
-						continue
-					}
-					if ev.ExtraInfo == nil {
-						ev.ExtraInfo = &types.ExtraInfo{
-							StenosisInfo: outParsed,
+					// annotate alerts with tokens and forward
+					if len(outParsed.Token) > 0 {
+						escToken, err := util.EscapeJSON(outParsed.Token)
+						if err != nil {
+							log.Warningf("cannot escape Stenosis token: %s", outParsed.Token)
+							continue
+						}
+						tmpLine, err := jsonparser.Set([]byte(a.JSONLine),
+							escToken, "_extra", "stenosis-info", "token")
+						if err != nil {
+							log.Warningf("error adding Stenosis token: %s", err.Error())
+						} else {
+							a.JSONLine = string(tmpLine)
 						}
 					} else {
-						ev.ExtraInfo.StenosisInfo = outParsed
+						log.Warning("empty token encountered")
 					}
-					var jsonCopy []byte
-					jsonCopy, err = json.Marshal(ev)
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					forwardChan <- jsonCopy
+					forwardChan <- []byte(a.JSONLine)
 				}
 			}
 			sConn.Cache.Delete(flow.FlowID)
@@ -162,7 +156,7 @@ func (s *StenosisConnector) Accept(e *types.Entry) {
 	s.Cache.Set(e.FlowID, myAlerts, cache.DefaultExpiration)
 }
 
-func (s *StenosisConnector) submit(e *types.Entry) (interface{}, error) {
+func (s *StenosisConnector) submit(e *types.Entry) (*api.QueryResponse, error) {
 	var ev types.EveOutEvent
 	if err := json.Unmarshal([]byte(e.JSONLine), &ev); err != nil {
 		return nil, err

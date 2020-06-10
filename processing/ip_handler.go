@@ -1,11 +1,10 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2018, DCSO GmbH
+// Copyright (c) 2018, 2020, DCSO GmbH
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -13,60 +12,57 @@ import (
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yl2chen/cidranger"
 )
 
 // MakeIPAlertEntryForHit returns an alert Entry as raised by an external
-// IP hit. The resulting alert will retain
-// the triggering event's metadata as well as
-// its timestamp.
+// IP hit. The resulting alert will retain the triggering event's metadata
+// as well as its timestamp.
 func MakeIPAlertEntryForHit(e types.Entry, matchedIP string,
 	rangerEntry cidranger.RangerEntry, alertPrefix string) types.Entry {
-	var eve types.EveEvent
-	var newEve types.EveEvent
-	var err = json.Unmarshal([]byte(e.JSONLine), &eve)
-	if err != nil {
-		log.Warn(err, e.JSONLine)
+	sig := `%s Communication involving IP %s in listed range %s`
+	matchedNet := rangerEntry.Network()
+	matchedNetString := matchedNet.String()
+
+	newEntry := e
+	newEntry.EventType = "alert"
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type"); err != nil {
+		log.Warning(err)
 	} else {
-		sig := "%s Communication involving IP %s in listed range %s"
-		matchedNet := rangerEntry.Network()
-		matchedNetString := matchedNet.String()
-		newEve = types.EveEvent{
-			EventType: "alert",
-			Alert: &types.AlertEvent{
-				Action:    "allowed",
-				Category:  "Potentially Bad Traffic",
-				Signature: fmt.Sprintf(sig, alertPrefix, matchedIP, matchedNetString),
-			},
-			Stream:     eve.Stream,
-			InIface:    eve.InIface,
-			SrcIP:      eve.SrcIP,
-			SrcPort:    eve.SrcPort,
-			DestIP:     eve.DestIP,
-			DestPort:   eve.DestPort,
-			Proto:      eve.Proto,
-			TxID:       eve.TxID,
-			Timestamp:  eve.Timestamp,
-			PacketInfo: eve.PacketInfo,
-			HTTP:       eve.HTTP,
-			DNS:        eve.DNS,
-			Flow:       eve.Flow,
-			SMTP:       eve.SMTP,
-			SSH:        eve.SSH,
-			Email:      eve.Email,
-			TLS:        eve.TLS,
+		newEntry.JSONLine = string(l)
+	}
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"allowed"`), "alert", "action"); err != nil {
+		log.Warning(err)
+	} else {
+		newEntry.JSONLine = string(l)
+	}
+
+	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"Potentially Bad Traffic"`), "alert", "category"); err != nil {
+		log.Warning(err)
+	} else {
+		newEntry.JSONLine = string(l)
+	}
+
+	if signature, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix,
+		matchedIP, matchedNetString)); err != nil {
+		log.Warning(err)
+
+	} else {
+		if l, err := jsonparser.Set([]byte(newEntry.JSONLine), signature,
+			"alert", "signature"); err != nil {
+			log.Warning(err)
+		} else {
+			newEntry.JSONLine = string(l)
 		}
 	}
-	newEntry := e
-	json, err := json.Marshal(newEve)
-	if err != nil {
-		log.Warn(err)
-	} else {
-		newEntry.JSONLine = string(json)
-	}
-	newEntry.EventType = "alert"
 
 	return newEntry
 }

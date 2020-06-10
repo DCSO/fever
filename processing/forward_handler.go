@@ -1,11 +1,10 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2017, 2019, 2020, DCSO GmbH
+// Copyright (c) 2017, 2020, DCSO GmbH
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"net"
 	"sync"
 	"time"
@@ -185,34 +184,23 @@ func MakeForwardHandler(reconnectTimes int, outputSocket string) *ForwardHandler
 func (fh *ForwardHandler) Consume(e *types.Entry) error {
 	doForwardThis := util.ForwardAllEvents || util.AllowType(e.EventType)
 	if doForwardThis {
-		var ev types.EveOutEvent
-		err := json.Unmarshal([]byte(e.JSONLine), &ev)
-		if err != nil {
-			return err
-		}
 		// mark flow as relevant when alert is seen
 		if GlobalContextCollector != nil && e.EventType == types.EventTypeAlert {
 			GlobalContextCollector.Mark(string(e.FlowID))
 		}
 		// we also perform active rDNS enrichment if requested
 		if fh.DoRDNS && fh.RDNSHandler != nil {
-			err = fh.RDNSHandler.Consume(e)
+			err := fh.RDNSHandler.Consume(e)
 			if err != nil {
 				return err
 			}
-			ev.SrcHost = e.SrcHosts
-			ev.DestHost = e.DestHosts
 		}
 		// if we use Stenosis, the Stenosis connector will take ownership of
 		// alerts
 		if fh.StenosisConnector != nil && e.EventType == types.EventTypeAlert {
 			fh.StenosisConnector.Accept(e)
 		} else {
-			jsonCopy, err := json.Marshal(ev)
-			if err != nil {
-				return err
-			}
-			fh.ForwardEventChan <- jsonCopy
+			fh.ForwardEventChan <- []byte(e.JSONLine)
 			fh.Lock.Lock()
 			fh.PerfStats.ForwardedPerSec++
 			fh.Lock.Unlock()
@@ -239,7 +227,7 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 // IPs in outgoing EVE events.
 func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.DoRDNS = true
-	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamer(expiryPeriod, 2*expiryPeriod))
+	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamerRDNS(expiryPeriod, 2*expiryPeriod))
 }
 
 // EnableStenosis ...

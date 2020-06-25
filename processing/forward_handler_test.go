@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -169,6 +170,86 @@ func TestForwardHandler(t *testing.T) {
 	}
 	if eve.DNS.Rrname != "foo3" {
 		t.Fatalf("invalid event data, expected 'foo3', got %s", eve.DNS.Rrname)
+	}
+}
+
+func TestForwardHandlerWithAddedFields(t *testing.T) {
+	util.PrepareEventFilter([]string{"alert"}, false)
+
+	dir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	tmpfn := filepath.Join(dir, fmt.Sprintf("t%d", rand.Int63()))
+
+	inputListener, err := net.Listen("unix", tmpfn)
+	if err != nil {
+		t.Fatal("error opening input socket:", err)
+	}
+	defer inputListener.Close()
+
+	// prepare slice to hold collected strings
+	coll := make([]string, 0)
+
+	// setup comms channels
+	clCh := make(chan bool)
+	cldCh := make(chan bool)
+
+	// start socket consumer
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
+
+	// start forwarding handler
+	fh := MakeForwardHandler(5, tmpfn)
+	fh.AddFields(map[string]string{
+		"foo": "bar",
+	})
+	fh.Run()
+
+	fhTypes := fh.GetEventTypes()
+	if len(fhTypes) != 1 {
+		t.Fatal("Forwarding handler should only claim one type")
+	}
+	if fhTypes[0] != "alert" {
+		t.Fatal("Forwarding handler should claim 'alert' type")
+	}
+	if fh.GetName() != "Forwarding handler" {
+		t.Fatal("Forwarding handler has wrong name")
+	}
+
+	e := makeEvent("alert", "foo1")
+	fh.Consume(&e)
+	e = makeEvent("alert", "foo2")
+	fh.Consume(&e)
+
+	// stop forwarding handler
+	scChan := make(chan bool)
+	fh.Stop(scChan)
+	<-scChan
+
+	// wait for socket consumer to receive all
+	wg.Wait()
+
+	if len(coll) != 2 {
+		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
+	}
+
+	var eve types.EveOutEvent
+	err = json.Unmarshal([]byte(coll[0]), &eve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(coll[0], `"foo":"bar"`) {
+		t.Fatal("added string missing: ", coll[0])
+	}
+	err = json.Unmarshal([]byte(coll[1]), &eve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(coll[1], `"foo":"bar"`) {
+		t.Fatal("added string missing: ", coll[1])
 	}
 }
 

@@ -219,6 +219,10 @@ func mainfunc(cmd *cobra.Command, args []string) {
 				log.Fatal(err)
 			}
 		}
+
+		addFields := viper.GetStringMapString("add-fields")
+		forwardHandler.(*processing.ForwardHandler).AddFields(addFields)
+
 		defer func() {
 			c := make(chan bool)
 			forwardHandler.(*processing.ForwardHandler).Stop(c)

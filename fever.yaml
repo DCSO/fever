@@ -96,6 +96,10 @@ stenosis:
       - root.crt
   skipverify: false
 
+# Extra fields to add to each forwarded event.
+#add-fields:
+#  sensor-id: foobar
+
 # Configuration for detailed flow metadata submission.
 flowextract:
   enable: false

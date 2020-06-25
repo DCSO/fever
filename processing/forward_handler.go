@@ -11,6 +11,7 @@ import (
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
+	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -28,6 +29,7 @@ type ForwardHandler struct {
 	Logger              *log.Entry
 	DoRDNS              bool
 	RDNSHandler         *RDNSHandler
+	AddedFields         map[string]string
 	ContextCollector    *ContextCollector
 	StenosisConnector   *StenosisConnector
 	ForwardEventChan    chan []byte
@@ -195,6 +197,22 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 				return err
 			}
 		}
+		if len(fh.AddedFields) > 0 {
+			for k, v := range fh.AddedFields {
+				val, err := util.EscapeJSON(v)
+				if err != nil {
+					fh.Logger.Warningf("cannot escape value: %s", v)
+					continue
+				}
+				newJSON, err := jsonparser.Set([]byte(e.JSONLine), val, k)
+				if err != nil {
+					fh.Logger.Warningf("cannot set %s: %s", k, v)
+					continue
+				} else {
+					e.JSONLine = string(newJSON)
+				}
+			}
+		}
 		// if we use Stenosis, the Stenosis connector will take ownership of
 		// alerts
 		if fh.StenosisConnector != nil && e.EventType == types.EventTypeAlert {
@@ -228,6 +246,12 @@ func (fh *ForwardHandler) GetEventTypes() []string {
 func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 	fh.DoRDNS = true
 	fh.RDNSHandler = MakeRDNSHandler(util.NewHostNamerRDNS(expiryPeriod, 2*expiryPeriod))
+}
+
+// AddFields enables the addition of a custom set of top-level fields to the
+// forwarded JSON.
+func (fh *ForwardHandler) AddFields(fields map[string]string) {
+	fh.AddedFields = fields
 }
 
 // EnableStenosis ...

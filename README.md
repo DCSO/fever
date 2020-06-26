@@ -132,7 +132,7 @@ Another way to consume events is via Redis. Use the `-r` parameters to specify a
 - Chunk size: determines the number of events that is imported as a whole at the same time. Larger values may be faster and lead to better throughput, but will use more RAM and also lose more events in case a bulk import (=transaction) fails. Smaller values will increase the overhead on the database.
 - Profiling: optional output of a pprof file to be used with `go tool pprof`.
 - Table rotation: tables are created as unlogged tables without indexes for maximal write performance. To keep table sizes in check, tables are timestamped and rotated in a time interval chosen by the user, e.g. 1h. Index creation is deferred until a table is rotated away and no longer written to, and also happens in the background. Indexing jobs are queued so if indexing takes longer than one rotation period, data should not be lost.
-- Event forwarding: Events processed by FEVER can be forwarded to another socket to be processed by a downstream tool, e.g. Logstash. By default, only `alert` and `stats` event types are forwarded, but the set of forwarded types can be extended using `-t <type>` for each additional type to be forwarded. As a catch-all (and probably the best option for sensors still running a full ELK stack) the option `-T` will forward everything.
+- Event forwarding: Events processed by FEVER can be forwarded to another socket to be processed by a downstream tool, e.g. Logstash. By default, only `alert` and `stats` event types are forwarded, but the set of forwarded types can be extended using `-t <type>` for additional types to be forwarded. As a catch-all (and probably the best option for sensors still running a full ELK stack) the option `-T` will forward everything.
 - Bloom filters can be reloaded by sending a `SIGUSR1` to the main process.
 
 ## Development test runs with local data
@@ -148,9 +148,9 @@ Instead of simply sending it to `/dev/null`, one can of course filter the output
 Start the service:
 
 ```bash
-$ ./fever run -v -n 0 -l '' &
+$ ./fever run -v -n 0 -o '' --logfile '' &
 ```
-The `-n 0` option disables submission of flow metadata. Optionally, `--dummy`/`--nodb` can be used to disable database inserts and only test input parsing and metadata aggregation.
+The `-n 0` option disables submission of flow metadata. The `-o ''` disables forwarding to a local socket sink. Optionally, `--dummy`/`--nodb` can be used to disable database inserts and only test input parsing and metadata aggregation.
 
 Finally, push test data into the input socket:
 

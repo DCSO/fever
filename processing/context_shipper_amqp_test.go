@@ -127,7 +127,7 @@ func TestContextShipperAMQPBrokenJSON(t *testing.T) {
 	if !found {
 		var entryStrings bytes.Buffer
 		for i, entry := range entries {
-			entryStrings.WriteString(fmt.Sprintf("(%d: %s)", i, entry.Message))
+			entryStrings.WriteString(fmt.Sprintf("%03d: %s\n", i, entry.Message))
 		}
 		t.Fatalf("malformed JSON error message not found: %v", entryStrings.String())
 	}

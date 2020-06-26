@@ -197,20 +197,18 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 				return err
 			}
 		}
-		if len(fh.AddedFields) > 0 {
-			for k, v := range fh.AddedFields {
-				val, err := util.EscapeJSON(v)
-				if err != nil {
-					fh.Logger.Warningf("cannot escape value: %s", v)
-					continue
-				}
-				newJSON, err := jsonparser.Set([]byte(e.JSONLine), val, k)
-				if err != nil {
-					fh.Logger.Warningf("cannot set %s: %s", k, v)
-					continue
-				} else {
-					e.JSONLine = string(newJSON)
-				}
+		for k, v := range fh.AddedFields {
+			val, err := util.EscapeJSON(v)
+			if err != nil {
+				fh.Logger.Warningf("cannot escape value: %s", v)
+				continue
+			}
+			newJSON, err := jsonparser.Set([]byte(e.JSONLine), val, k)
+			if err != nil {
+				fh.Logger.Warningf("cannot set %s: %s", k, v)
+				continue
+			} else {
+				e.JSONLine = string(newJSON)
 			}
 		}
 		// if we use Stenosis, the Stenosis connector will take ownership of

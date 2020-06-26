@@ -1,0 +1,93 @@
+# Changelog
+
+All notable changes to FEVER will be documented in this file.
+
+
+## [1.0.10] - 2020-06-11
+
+### Changed
+- Only extend incoming EVE-JSON instead of marshaling into predefined schema. This enables future-proof consistent output of EVE-JSON as there are no assuptions about what fields are present or allowed in the JSON schema (#54)
+
+### Fixed
+- Some bugfixes (such as race conditions).
+
+## [1.0.9] - 2020-05-14
+
+### Added
+- Support for interacting with an external persistence tool (Stenosis).
+
+### Changed
+Various cleanups as well as test and code simplifications.
+
+## [1.0.8] - 2019-09-19
+
+### Added
+- Optional collection of metadata bundles (context) for each alert, to be submitted over a separate AMQP connection (#46)
+
+### Changed
+- Flow IDs are now forwarded as strings to work around potential issues with syslog-ng (#48)
+
+## [1.0.7] - 2019-08-06
+
+### Fixed
+- Bloom filter alerts might not be properly forwarded (cf. rhaist/surevego@b1cf215)
+
+## [1.0.6] - 2019-08-02
+
+### Added
+- Support for active rDNS queries (#36)
+- Bloom filter IoC blocking (#44)
+
+### Changed
+- Do not use explicit types in InfluxDB submissions (#34)
+- Distinguish DNS query and answer in Bloom filter alerting (#40)
+- Allow AMQP channel multiplexing (#43)
+
+### Fixed
+- Fix bug causing 100% CPU on AMQP reconnect (#43)
+
+## [1.0.5] - 2019-02-14
+
+### Added
+- Support for more flexible URL Bloom filter matching (#33)
+
+### Fixed
+- Improved stability of tests w.r.t. run time, see (#32 and #31)
+
+## [1.0.4] - 2019-01-25
+
+### Added
+- Forwarding can be disabled by setting -o to empty string (#22)
+- TLS metadata is included in TLS SNI Bloom filter alert (#26)
+
+### Fixed
+- Tests no longer fail intermittently (#27)
+
+### Changed
+- All events are sent to the database, not just those unhandled by any additional processors (#29)
+
+## [1.0.3] - 2019-01-11
+
+### Added
+- Support for IP alerting via EVE metadata (#18)
+
+### Changed
+- Improves robustness of Bloom filter matching by more relaxed handling of corrupted filter input files (#19)
+
+## [1.0.2] - 2018-12-11
+
+### Added
+- Configurable Bloom filter prefixes (#16)
+
+## [1.0.1] - 2018-11-12
+
+### Added
+- `makeman` subcommand
+
+### Changed
+- Do not fail when no config file can be read.
+- Do not use DCSO-specific alert prefixes by default for Bloom filter alerts.
+
+## [1.0.0] - 2018-11-09
+
+First proper open-source release.

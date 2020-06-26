@@ -177,19 +177,20 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	// start forwarding
 	if forward {
 		forwardHandler = processing.MakeForwardHandler(int(reconnectTimes), outputSocket)
+		fh := forwardHandler.(*processing.ForwardHandler)
 		if pse != nil {
-			forwardHandler.(*processing.ForwardHandler).SubmitStats(pse)
+			fh.SubmitStats(pse)
 		}
 		rdns := viper.GetBool("active.rdns")
 		if rdns {
 			expiryPeriod := viper.GetDuration("active.rdns-cache-expiry")
-			forwardHandler.(*processing.ForwardHandler).EnableRDNS(expiryPeriod)
+			fh.EnableRDNS(expiryPeriod)
 			privateOnly := viper.GetBool("active.rdns-private-only")
 			if privateOnly {
-				forwardHandler.(*processing.ForwardHandler).RDNSHandler.EnableOnlyPrivateIPRanges()
+				fh.RDNSHandler.EnableOnlyPrivateIPRanges()
 			}
 		}
-		forwardHandler.(*processing.ForwardHandler).Run()
+		fh.Run()
 
 		stenosis := viper.GetBool("stenosis.enable")
 		if stenosis {
@@ -213,7 +214,7 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			stenosisCacheExpiry := viper.GetDuration("stenosis.cache-expiry")
 			stenosisURL := viper.GetString("stenosis.submission-url")
 
-			if err := forwardHandler.(*processing.ForwardHandler).EnableStenosis(stenosisURL,
+			if err := fh.EnableStenosis(stenosisURL,
 				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, stenosisCacheExpiry,
 				tlsConfig); err != nil {
 				log.Fatal(err)
@@ -221,11 +222,11 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		}
 
 		addFields := viper.GetStringMapString("add-fields")
-		forwardHandler.(*processing.ForwardHandler).AddFields(addFields)
+		fh.AddFields(addFields)
 
 		defer func() {
 			c := make(chan bool)
-			forwardHandler.(*processing.ForwardHandler).Stop(c)
+			fh.Stop(c)
 			<-c
 		}()
 	} else {

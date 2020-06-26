@@ -1,9 +1,11 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2019, DCSO GmbH
+// Copyright (c) 2019, 2020, DCSO GmbH
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -113,7 +115,20 @@ func TestContextShipperAMQPBrokenJSON(t *testing.T) {
 	}
 
 	close(inChan)
-	if entries[0].Message != `could not marshal event JSON: {""value":1}` {
-		t.Fatalf("wrong error message: %v", entries[0].Message)
+	found := false
+
+	for _, entry := range entries {
+		if entry.Message == `could not marshal event JSON: {""value":1}` {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		var entryStrings bytes.Buffer
+		for i, entry := range entries {
+			entryStrings.WriteString(fmt.Sprintf("%03d: %s\n", i, entry.Message))
+		}
+		t.Fatalf("malformed JSON error message not found: %v", entryStrings.String())
 	}
 }

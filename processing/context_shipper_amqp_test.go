@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2019, DCSO GmbH
+// Copyright (c) 2019, 2020, DCSO GmbH
 
 import (
 	"bytes"

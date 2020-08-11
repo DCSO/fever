@@ -2,6 +2,14 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.0.11] - 2020-08-11
+
+### Added
+- CHANGELOG.md now available.
+
+### Changed
+- Add option to inject arbitrary fields into EVE-JSON (#49)
+- Various code simplifications and robustness improvements.
 
 ## [1.0.10] - 2020-06-11
 

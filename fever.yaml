@@ -95,6 +95,7 @@ stenosis:
   root-cas:
       - root.crt
   skipverify: false
+  # interface: "*"
 
 # Extra fields to add to each forwarded event.
 #add-fields:

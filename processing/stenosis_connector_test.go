@@ -57,7 +57,7 @@ import (
 // 	entry.JSONLine = string(jsonData)
 // }
 
-func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
+func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string) []string {
 	util.PrepareEventFilter([]string{"alert"}, false)
 
 	dir, err := ioutil.TempDir("", "test")
@@ -112,7 +112,8 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 	fh.Run()
 
 	// fh.EnableStenosis(apiServer.URL, 2*time.Second, notifyChan, nil)
-	fh.EnableStenosis(grpcServer.Addr(), 2*time.Second, 10*time.Second, notifyChan, 10*time.Minute, nil)
+	fh.EnableStenosis(grpcServer.Addr(), 2*time.Second, 10*time.Second,
+		notifyChan, 10*time.Minute, nil, ifaceSetting)
 
 	// make alert
 	myTime, err := time.Parse(time.RFC3339, "2020-01-09T09:38:51+01:00")
@@ -120,11 +121,13 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 		t.Fatal(err)
 	}
 	eve := types.EveEvent{
-		SrcIP:    "192.168.2.42",
-		DestIP:   "192.168.88.115",
-		SrcPort:  43655,
-		DestPort: 23,
-		FlowID:   13,
+		SrcIP:     "192.168.2.42",
+		DestIP:    "192.168.88.115",
+		SrcPort:   43655,
+		DestPort:  23,
+		FlowID:    13,
+		EventType: "alert",
+		InIface:   "eth1",
 		Timestamp: &types.SuriTime{
 			Time: myTime,
 		},
@@ -146,6 +149,7 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 		Timestamp: myTime.Format(types.SuricataTimestampFormat),
 		EventType: "alert",
 		Proto:     "TCP",
+		Iface:     "eth1",
 	}
 	jsonData, err := json.Marshal(eve)
 	if err != nil {
@@ -154,11 +158,13 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 	entry.JSONLine = string(jsonData)
 
 	flowEve := types.EveEvent{
-		SrcIP:    "192.168.2.42",
-		DestIP:   "192.168.88.115",
-		SrcPort:  43655,
-		DestPort: 23,
-		FlowID:   13,
+		SrcIP:     "192.168.2.42",
+		DestIP:    "192.168.88.115",
+		SrcPort:   43655,
+		DestPort:  23,
+		FlowID:    13,
+		EventType: "flow",
+		InIface:   "eth1",
 		Timestamp: &types.SuriTime{
 			Time: myTime,
 		},
@@ -177,6 +183,7 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 		Timestamp: myTime.Format(types.SuricataTimestampFormat),
 		EventType: "flow",
 		Proto:     "TCP",
+		Iface:     "eth1",
 	}
 	jsonData, err = json.Marshal(flowEve)
 	if err != nil {
@@ -200,12 +207,17 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 	// wait for socket consumer to receive all
 	wg.Wait()
 
+	return coll
+}
+
+func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
+	coll := _TestStenosisQueryRegularSuccessForwarded(t, "*")
 	if len(coll) != 1 {
 		t.Fatalf("unexpected number of alerts: %d != 1", len(coll))
 	}
 
 	var eveOut types.EveOutEvent
-	err = json.Unmarshal([]byte(coll[0]), &eveOut)
+	err := json.Unmarshal([]byte(coll[0]), &eveOut)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,6 +227,53 @@ func TestStenosisQueryRegularSuccessForwarded(t *testing.T) {
 	}
 	if !strings.Contains(coll[0], `"token":`) {
 		t.Fatalf("%v missing 'token' string", coll[0])
+	}
+	if !strings.Contains(coll[0], `"bloom-ioc"`) {
+		t.Fatalf("%v missing 'bloom-ioc' string", coll[0])
+	}
+}
+
+func TestStenosisQueryRegularSuccessForwardedWithIfaceOK(t *testing.T) {
+	coll := _TestStenosisQueryRegularSuccessForwarded(t, "eth1")
+	if len(coll) != 1 {
+		t.Fatalf("unexpected number of alerts: %d != 1", len(coll))
+	}
+
+	var eveOut types.EveOutEvent
+	err := json.Unmarshal([]byte(coll[0]), &eveOut)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(coll[0], `"stenosis-info":`) {
+		t.Fatalf("%v missing 'stenosis-info' string", coll[0])
+	}
+	if !strings.Contains(coll[0], `"token":`) {
+		t.Fatalf("%v missing 'token' string", coll[0])
+	}
+	if !strings.Contains(coll[0], `"bloom-ioc"`) {
+		t.Fatalf("%v missing 'bloom-ioc' string", coll[0])
+	}
+}
+
+func TestStenosisQueryRegularSuccessForwardedWithIfaceNonMatch(t *testing.T) {
+	coll := _TestStenosisQueryRegularSuccessForwarded(t, "eth2")
+	if len(coll) != 1 {
+		t.Fatalf("unexpected number of alerts: %d != 1", len(coll))
+	}
+
+	var eveOut types.EveOutEvent
+	err := json.Unmarshal([]byte(coll[0]), &eveOut)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// In this case we do NOT want to see any results from a Stenosis call.
+	if strings.Contains(coll[0], `"stenosis-info":`) {
+		t.Fatalf("%v contains 'stenosis-info' string", coll[0])
+	}
+	if strings.Contains(coll[0], `"token":`) {
+		t.Fatalf("%v contains 'token' string", coll[0])
 	}
 	if !strings.Contains(coll[0], `"bloom-ioc"`) {
 		t.Fatalf("%v missing 'bloom-ioc' string", coll[0])

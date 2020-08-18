@@ -40,4 +40,5 @@ type Entry struct {
 	PktsToClient  int64
 	PktsToServer  int64
 	FlowID        string
+	Iface         string
 }

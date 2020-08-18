@@ -48,6 +48,7 @@ var evekeys = [][]string{
 	[]string{"dns", "version"},         // 20
 	[]string{"dns", "answers"},         // 21
 	[]string{"flow_id"},                // 22
+	[]string{"in_iface"},               // 23
 }
 
 // EscapeJSON escapes a string as a quoted byte slice for direct use in jsonparser.Set().
@@ -227,6 +228,12 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 			}
 		case 22:
 			e.FlowID, err = jsonparser.ParseString(value)
+			if err != nil {
+				parseerr = err
+				return
+			}
+		case 23:
+			e.Iface, err = jsonparser.ParseString(value)
 			if err != nil {
 				parseerr = err
 				return

@@ -31,6 +31,7 @@ type ForwardHandler struct {
 	RDNSHandler         *RDNSHandler
 	AddedFields         map[string]string
 	ContextCollector    *ContextCollector
+	StenosisIface       string
 	StenosisConnector   *StenosisConnector
 	ForwardEventChan    chan []byte
 	FlowNotifyChan      chan types.Entry
@@ -213,7 +214,9 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 		}
 		// if we use Stenosis, the Stenosis connector will take ownership of
 		// alerts
-		if fh.StenosisConnector != nil && e.EventType == types.EventTypeAlert {
+		if fh.StenosisConnector != nil &&
+			e.EventType == types.EventTypeAlert &&
+			(fh.StenosisIface == "*" || e.Iface == fh.StenosisIface) {
 			fh.StenosisConnector.Accept(e)
 		} else {
 			fh.ForwardEventChan <- []byte(e.JSONLine)
@@ -254,9 +257,10 @@ func (fh *ForwardHandler) AddFields(fields map[string]string) {
 
 // EnableStenosis ...
 func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout, timeBracket time.Duration,
-	notifyChan chan types.Entry, cacheExpiry time.Duration, tlsConfig *tls.Config) (err error) {
+	notifyChan chan types.Entry, cacheExpiry time.Duration, tlsConfig *tls.Config, iface string) (err error) {
 	fh.StenosisConnector, err = MakeStenosisConnector(endpoint, timeout, timeBracket,
 		notifyChan, fh.ForwardEventChan, cacheExpiry, tlsConfig)
+	fh.StenosisIface = iface
 	return
 }
 

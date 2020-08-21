@@ -246,6 +246,7 @@ type packetInfo struct {
 // ExtraInfo contains non-EVE-standard extra information
 type ExtraInfo struct {
 	BloomIOC     string      `json:"bloom-ioc,omitempty"`
+	VastIOC      string      `json:"vast-ioc,omitempty"`
 	StenosisInfo interface{} `json:"stenosis-info,omitempty"`
 }
 

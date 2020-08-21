@@ -5,66 +5,36 @@ package processing
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"os"
 	"sync"
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
-	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yl2chen/cidranger"
 )
 
-// MakeIPAlertEntryForHit returns an alert Entry as raised by an external
-// IP hit. The resulting alert will retain the triggering event's metadata
-// as well as its timestamp.
-func MakeIPAlertEntryForHit(e types.Entry, matchedIP string,
-	rangerEntry cidranger.RangerEntry, alertPrefix string) types.Entry {
-	sig := `%s Communication involving IP %s in listed range %s`
-	matchedNet := rangerEntry.Network()
-	matchedNetString := matchedNet.String()
+// IPAlertJSONProviderSrcIP is an AlertJSONProvider for source IP address matches.
+type IPAlertJSONProviderSrcIP struct{}
 
-	newEntry := e
-	newEntry.EventType = "alert"
+// GetAlertJSON returns the "alert" subobject for an alert EVE event.
+func (a IPAlertJSONProviderSrcIP) GetAlertJSON(inputEvent types.Entry,
+	prefix string, ioc string) ([]byte, error) {
+	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
+		"%s Communication involving IP "+inputEvent.SrcIP+" in listed range %s")
+}
 
-	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
-		[]byte(`"alert"`), "event_type"); err != nil {
-		log.Warning(err)
-	} else {
-		newEntry.JSONLine = string(l)
-	}
+// IPAlertJSONProviderDstIP is an AlertJSONProvider for destination IP address
+// matches.
+type IPAlertJSONProviderDstIP struct{}
 
-	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
-		[]byte(`"allowed"`), "alert", "action"); err != nil {
-		log.Warning(err)
-	} else {
-		newEntry.JSONLine = string(l)
-	}
-
-	if l, err := jsonparser.Set([]byte(newEntry.JSONLine),
-		[]byte(`"Potentially Bad Traffic"`), "alert", "category"); err != nil {
-		log.Warning(err)
-	} else {
-		newEntry.JSONLine = string(l)
-	}
-
-	if signature, err := util.EscapeJSON(fmt.Sprintf(sig, alertPrefix,
-		matchedIP, matchedNetString)); err != nil {
-		log.Warning(err)
-
-	} else {
-		if l, err := jsonparser.Set([]byte(newEntry.JSONLine), signature,
-			"alert", "signature"); err != nil {
-			log.Warning(err)
-		} else {
-			newEntry.JSONLine = string(l)
-		}
-	}
-
-	return newEntry
+// GetAlertJSON returns the "alert" subobject for an alert EVE event.
+func (a IPAlertJSONProviderDstIP) GetAlertJSON(inputEvent types.Entry,
+	prefix string, ioc string) ([]byte, error) {
+	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
+		"%s Communication involving IP "+inputEvent.DestIP+" in listed range %s")
 }
 
 // IPHandler is a Handler which is meant to check for the presence of
@@ -81,14 +51,16 @@ type IPHandler struct {
 	ForwardHandler    Handler
 	DoForwardAlert    bool
 	AlertPrefix       string
+	Alertifier        *util.Alertifier
 }
 
 // MakeIPHandler returns a new IPHandler, checking against the given
 // IP ranges and sending alerts to databaseChan as well as forwarding them
 // to a given forwarding handler.
 func MakeIPHandler(ranger cidranger.Ranger,
-	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string) *IPHandler {
-	bh := &IPHandler{
+	databaseChan chan types.Entry, forwardHandler Handler,
+	alertPrefix string) *IPHandler {
+	ih := &IPHandler{
 		Logger: log.WithFields(log.Fields{
 			"domain": "ip-blacklist",
 		}),
@@ -97,9 +69,14 @@ func MakeIPHandler(ranger cidranger.Ranger,
 		ForwardHandler:    forwardHandler,
 		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
 		AlertPrefix:       alertPrefix,
+		Alertifier:        util.MakeAlertifier(alertPrefix),
 	}
+	ih.Alertifier.SetExtraModifier(bloomExtraModifier)
+	ih.Alertifier.RegisterMatchType("ip-src", IPAlertJSONProviderSrcIP{})
+	ih.Alertifier.RegisterMatchType("ip-dst", IPAlertJSONProviderDstIP{})
+	ih.Alertifier.SetExtraModifier(nil)
 	log.WithFields(log.Fields{}).Info("IP range list loaded")
-	return bh
+	return ih
 }
 
 func rangerFromFile(IPListFilename string) (cidranger.Ranger, error) {
@@ -157,18 +134,28 @@ func (a *IPHandler) Consume(e *types.Entry) error {
 		log.Warn(err)
 	}
 	for _, v := range srcRanges {
-		n := MakeIPAlertEntryForHit(*e, e.SrcIP, v, a.AlertPrefix)
-		a.DatabaseEventChan <- n
-		a.ForwardHandler.Consume(&n)
+		matchedNet := v.Network()
+		matchedNetString := matchedNet.String()
+		if n, err := a.Alertifier.MakeAlert(*e, matchedNetString, "ip-src"); err == nil {
+			a.DatabaseEventChan <- *n
+			a.ForwardHandler.Consume(n)
+		} else {
+			log.Warn(err)
+		}
 	}
 	dstRanges, err := a.Ranger.ContainingNetworks(net.ParseIP(e.DestIP))
 	if err != nil {
 		log.Warn(err)
 	}
 	for _, v := range dstRanges {
-		n := MakeIPAlertEntryForHit(*e, e.DestIP, v, a.AlertPrefix)
-		a.DatabaseEventChan <- n
-		a.ForwardHandler.Consume(&n)
+		matchedNet := v.Network()
+		matchedNetString := matchedNet.String()
+		if n, err := a.Alertifier.MakeAlert(*e, matchedNetString, "ip-dst"); err == nil {
+			a.DatabaseEventChan <- *n
+			a.ForwardHandler.Consume(n)
+		} else {
+			log.Warn(err)
+		}
 	}
 	a.Unlock()
 	return nil

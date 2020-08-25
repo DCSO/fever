@@ -18,59 +18,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// BloomAlertJSONProviderHTTPURL is an AlertJSONProvider for HTTP URL matches.
-type BloomAlertJSONProviderHTTPURL struct{}
-
-// GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a BloomAlertJSONProviderHTTPURL) GetAlertJSON(inputEvent types.Entry,
-	prefix string, ioc string) ([]byte, error) {
-	v := fmt.Sprintf("%s | %s | %s", inputEvent.HTTPMethod, inputEvent.HTTPHost,
-		inputEvent.HTTPUrl)
-	return util.GenericGetAlertObjForIoc(inputEvent, prefix, v,
-		"%s Possibly bad HTTP URL: %s")
-}
-
-// BloomAlertJSONProviderHTTPHost is an AlertJSONProvider for HTTP Host header
-// matches.
-type BloomAlertJSONProviderHTTPHost struct{}
-
-// GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a BloomAlertJSONProviderHTTPHost) GetAlertJSON(inputEvent types.Entry,
-	prefix string, ioc string) ([]byte, error) {
-	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
-		"%s Possibly bad HTTP host: %s")
-}
-
-// BloomAlertJSONProviderDNSReq is an AlertJSONProvider for DNS request matches.
-type BloomAlertJSONProviderDNSReq struct{}
-
-// GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a BloomAlertJSONProviderDNSReq) GetAlertJSON(inputEvent types.Entry,
-	prefix string, ioc string) ([]byte, error) {
-	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
-		"%s Possibly bad DNS lookup to %s")
-}
-
-// BloomAlertJSONProviderDNSResp is an AlertJSONProvider for DNS response matches.
-type BloomAlertJSONProviderDNSResp struct{}
-
-// GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a BloomAlertJSONProviderDNSResp) GetAlertJSON(inputEvent types.Entry,
-	prefix string, ioc string) ([]byte, error) {
-	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
-		"%s Possibly bad DNS response for %s")
-}
-
-// BloomAlertJSONProviderTLSSni is an AlertJSONProvider for TLS SNI matches.
-type BloomAlertJSONProviderTLSSni struct{}
-
-// GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a BloomAlertJSONProviderTLSSni) GetAlertJSON(inputEvent types.Entry,
-	prefix string, ioc string) ([]byte, error) {
-	return util.GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
-		"%s Possibly bad TLS SNI: %s")
-}
-
 // BloomHandler is a Handler which is meant to check for the presence of
 // event type-specific keywords in a Bloom filter, raising new 'alert' type
 // events when matches are found.
@@ -134,11 +81,11 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 		BlacklistIOCs:     make(map[string]struct{}),
 	}
 	bh.Alertifier.SetExtraModifier(bloomExtraModifier)
-	bh.Alertifier.RegisterMatchType("dns-req", BloomAlertJSONProviderDNSReq{})
-	bh.Alertifier.RegisterMatchType("dns-resp", BloomAlertJSONProviderDNSResp{})
-	bh.Alertifier.RegisterMatchType("tls-sni", BloomAlertJSONProviderTLSSni{})
-	bh.Alertifier.RegisterMatchType("http-host", BloomAlertJSONProviderHTTPHost{})
-	bh.Alertifier.RegisterMatchType("http-url", BloomAlertJSONProviderHTTPURL{})
+	bh.Alertifier.RegisterMatchType("dns-req", util.AlertJSONProviderDNSReq{})
+	bh.Alertifier.RegisterMatchType("dns-resp", util.AlertJSONProviderDNSResp{})
+	bh.Alertifier.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSni{})
+	bh.Alertifier.RegisterMatchType("http-host", util.AlertJSONProviderHTTPHost{})
+	bh.Alertifier.RegisterMatchType("http-url", util.AlertJSONProviderHTTPURL{})
 	log.WithFields(log.Fields{
 		"N":      iocBloom.N,
 		"domain": "bloom",

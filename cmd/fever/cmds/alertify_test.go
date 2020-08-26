@@ -12,7 +12,7 @@ import (
 
 func checkAlertified(t *testing.T, es []types.Entry, ioc string,
 	result string) bool {
-	a := makeAlertifyAlertifier("TEST")
+	a := makeAlertifyAlertifier("TEST", "test-ioc")
 	var buf bytes.Buffer
 	for _, e := range es {
 		err := emitAlertsForEvent(a, e, ioc, &buf, 0)
@@ -24,7 +24,7 @@ func checkAlertified(t *testing.T, es []types.Entry, ioc string,
 }
 
 func checkLimit(t *testing.T, es []types.Entry, ioc string) {
-	a := makeAlertifyAlertifier("TEST")
+	a := makeAlertifyAlertifier("TEST", "test-ioc")
 	var buf bytes.Buffer
 	i := 0
 	for _, e := range es {

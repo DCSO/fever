@@ -30,7 +30,7 @@ func (a alertifyAlertJSONProvider) GetAlertJSON(inputEvent types.Entry,
 		"%s Generic IoC match for: %s")
 }
 
-func makeAlertifyAlertifier(prefix string) *util.Alertifier {
+func makeAlertifyAlertifier(prefix, extrakey string) *util.Alertifier {
 	a := util.MakeAlertifier(prefix)
 	a.RegisterMatchType("dns-req", util.AlertJSONProviderDNSReq{})
 	a.RegisterMatchType("dns-resp", util.AlertJSONProviderDNSResp{})
@@ -44,7 +44,7 @@ func makeAlertifyAlertifier(prefix string) *util.Alertifier {
 			return err
 		}
 		val, err := jsonparser.Set([]byte(inputAlert.JSONLine), iocEscaped,
-			"_extra", "vast-ioc")
+			"_extra", extrakey)
 		if err != nil {
 			return err
 		}
@@ -138,8 +138,9 @@ func alertify(cmd *cobra.Command, args []string) {
 		log.Fatal("IoC cannot be empty")
 	}
 	limit := viper.GetUint("alert-limit")
+	extrakey := viper.GetString("extra-key")
 
-	a := makeAlertifyAlertifier(prefix)
+	a := makeAlertifyAlertifier(prefix, extrakey)
 	for e := range eventChan {
 		err := emitAlertsForEvent(a, e, ioc, os.Stdout, uint64(limit))
 		if err != nil {
@@ -163,6 +164,8 @@ func init() {
 
 	alertifyCmd.PersistentFlags().StringP("ioc", "i", "", "indicator to flag for in input event")
 	viper.BindPFlag("ioc", alertifyCmd.PersistentFlags().Lookup("ioc"))
+	alertifyCmd.PersistentFlags().StringP("extra-key", "e", "alertify-ioc", "key for IoC container field in _extra subobject")
+	viper.BindPFlag("extra-key", alertifyCmd.PersistentFlags().Lookup("extra-key"))
 	alertifyCmd.PersistentFlags().StringP("alert-prefix", "p", "ALERTIFY", "prefix for alert.signature field")
 	viper.BindPFlag("alert-prefix", alertifyCmd.PersistentFlags().Lookup("alert-prefix"))
 	alertifyCmd.PersistentFlags().UintP("alert-limit", "l", 0, "limit for alerts to be created (0 = no limit)")

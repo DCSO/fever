@@ -161,7 +161,7 @@ var alertifyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(alertifyCmd)
 
-	alertifyCmd.PersistentFlags().StringP("ioc", "i", "<none>", "indicator to flag for in input event")
+	alertifyCmd.PersistentFlags().StringP("ioc", "i", "", "indicator to flag for in input event")
 	viper.BindPFlag("ioc", alertifyCmd.PersistentFlags().Lookup("ioc"))
 	alertifyCmd.PersistentFlags().StringP("alert-prefix", "p", "ALERTIFY", "prefix for alert.signature field")
 	viper.BindPFlag("alert-prefix", alertifyCmd.PersistentFlags().Lookup("alert-prefix"))

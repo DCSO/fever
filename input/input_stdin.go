@@ -1,7 +1,7 @@
 package input
 
 // DCSO FEVER
-// Copyright (c) 2017, DCSO GmbH
+// Copyright (c) 2020, DCSO GmbH
 
 import (
 	"bufio"

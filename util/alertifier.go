@@ -72,38 +72,39 @@ func (a *Alertifier) SetExtraModifier(em ExtraModifier) {
 // matchType.
 func (a *Alertifier) MakeAlert(inputEvent types.Entry, ioc string,
 	matchType string) (*types.Entry, error) {
-	if v, ok := a.matchTypes[matchType]; ok {
-		// clone the original event
-		newEntry := inputEvent
-		// set a new event type in Entry
-		newEntry.EventType = "alert"
-		// generate alert sub-object JSON
-		val, err := v.GetAlertJSON(inputEvent, a.alertPrefix, ioc)
-		if err != nil {
-			return nil, err
-		}
-		// update JSON text
-		l, err := jsonparser.Set([]byte(newEntry.JSONLine), val, "alert")
-		if err != nil {
-			return nil, err
-		}
-		newEntry.JSONLine = string(l)
-		l, err = jsonparser.Set([]byte(newEntry.JSONLine),
-			[]byte(`"alert"`), "event_type")
-		if err != nil {
-			return nil, err
-		}
-		newEntry.JSONLine = string(l)
-		if a.extraModifier != nil {
-			err = a.extraModifier(&newEntry, ioc)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return &newEntry, nil
+	v, ok := a.matchTypes[matchType]
+	if !ok {
+		return nil, fmt.Errorf("cannot create alert for metadata, unknown "+
+			"matchtype '%s'", matchType)
 	}
-	return nil, fmt.Errorf("cannot create alert for metadata, unknown "+
-		"matchtype '%s'", matchType)
+	// clone the original event
+	newEntry := inputEvent
+	// set a new event type in Entry
+	newEntry.EventType = "alert"
+	// generate alert sub-object JSON
+	val, err := v.GetAlertJSON(inputEvent, a.alertPrefix, ioc)
+	if err != nil {
+		return nil, err
+	}
+	// update JSON text
+	l, err := jsonparser.Set([]byte(newEntry.JSONLine), val, "alert")
+	if err != nil {
+		return nil, err
+	}
+	newEntry.JSONLine = string(l)
+	l, err = jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type")
+	if err != nil {
+		return nil, err
+	}
+	newEntry.JSONLine = string(l)
+	if a.extraModifier != nil {
+		err = a.extraModifier(&newEntry, ioc)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &newEntry, nil
 }
 
 // GenericGetAlertObjForIoc is a simple helper function that takes a format

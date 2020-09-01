@@ -162,7 +162,7 @@ var alertifyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(alertifyCmd)
 
-	alertifyCmd.PersistentFlags().StringP("ioc", "i", "", "indicator to flag for in input event")
+	alertifyCmd.PersistentFlags().StringP("ioc", "i", "", "indicator to flag in an input event")
 	viper.BindPFlag("ioc", alertifyCmd.PersistentFlags().Lookup("ioc"))
 	alertifyCmd.PersistentFlags().StringP("extra-key", "e", "alertify-ioc", "key for IoC container field in _extra subobject")
 	viper.BindPFlag("extra-key", alertifyCmd.PersistentFlags().Lookup("extra-key"))

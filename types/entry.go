@@ -34,7 +34,7 @@ type Entry struct {
 	DNSRData      string
 	DNSType       string
 	DNSAnswers    []DNSAnswer
-	TLSSni        string
+	TLSSNI        string
 	BytesToClient int64
 	BytesToServer int64
 	PktsToClient  int64

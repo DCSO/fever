@@ -86,12 +86,16 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 			log.Debugf("flow with existing alert finished: %v", flow)
 			myAlerts = aval.([]types.Entry)
 			outParsed, err := sConn.submit(&flow)
-			if err != nil {
+			if err != nil || outParsed == nil {
 				// We had a problem contacting stenosis for tokens.
 				// Let's make sure that alerts are forwarded
 				// nevertheless -- their delivery has highest
 				// priority.
-				log.Error(err)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.Error("could not obtain token but no error was raised")
+				}
 				for _, a := range myAlerts {
 					forwardChan <- []byte(a.JSONLine)
 				}

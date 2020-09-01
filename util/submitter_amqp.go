@@ -176,6 +176,7 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 	var payload []byte
 	var encoding string
 	var isCompressed string
+	defer s.Submitter.ConnMutex.Unlock()
 
 	if s.Compress {
 		var b bytes.Buffer
@@ -202,6 +203,18 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 		option["headers"].(origamqp.Table)[k] = v
 	}
 
+	s.Submitter.ConnMutex.Lock()
+	// Double-check whether a value is nil and make sure we won't deref it.
+	switch {
+	case s.Submitter == nil:
+		s.Submitter.Logger.Errorf("submitter was nil, skipping submission for %s",
+			s.Target)
+		return
+	case s.Submitter.Channel == nil:
+		s.Submitter.Logger.Errorf("channel was nil, skipping submission for %s/%s",
+			s.Submitter.URL, s.Target)
+		return
+	}
 	err := s.Submitter.Channel.Publish(
 		s.Target, // exchange
 		key,      // routing key

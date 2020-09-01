@@ -118,7 +118,7 @@ func makeBloomTLSEvent(host string) types.Entry {
 		Timestamp: time.Now().Format(types.SuricataTimestampFormat),
 		EventType: "tls",
 		Proto:     "TCP",
-		TLSSni:    host,
+		TLSSNI:    host,
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
@@ -131,7 +131,7 @@ func makeBloomTLSEvent(host string) types.Entry {
 		DestPort:  int(e.DestPort),
 		Proto:     e.Proto,
 		TLS: &types.TLSEvent{
-			Sni: e.TLSSni,
+			Sni: e.TLSSNI,
 		},
 	}
 	json, err := json.Marshal(eve)

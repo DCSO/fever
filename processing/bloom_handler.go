@@ -83,7 +83,7 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 	bh.Alertifier.SetExtraModifier(bloomExtraModifier)
 	bh.Alertifier.RegisterMatchType("dns-req", util.AlertJSONProviderDNSReq{})
 	bh.Alertifier.RegisterMatchType("dns-resp", util.AlertJSONProviderDNSResp{})
-	bh.Alertifier.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSni{})
+	bh.Alertifier.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSNI{})
 	bh.Alertifier.RegisterMatchType("http-host", util.AlertJSONProviderHTTPHost{})
 	bh.Alertifier.RegisterMatchType("http-url", util.AlertJSONProviderHTTPURL{})
 	log.WithFields(log.Fields{
@@ -264,9 +264,9 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 		a.Unlock()
 	} else if e.EventType == "tls" {
 		a.Lock()
-		if a.IocBloom.Check([]byte(e.TLSSni)) {
-			if _, present := a.BlacklistIOCs[e.TLSSni]; !present {
-				if n, err := a.Alertifier.MakeAlert(*e, e.TLSSni,
+		if a.IocBloom.Check([]byte(e.TLSSNI)) {
+			if _, present := a.BlacklistIOCs[e.TLSSNI]; !present {
+				if n, err := a.Alertifier.MakeAlert(*e, e.TLSSNI,
 					"tls-sni"); err == nil {
 					a.DatabaseEventChan <- *n
 					a.ForwardHandler.Consume(n)

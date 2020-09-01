@@ -34,7 +34,7 @@ func makeAlertifyAlertifier(prefix, extrakey string) *util.Alertifier {
 	a := util.MakeAlertifier(prefix)
 	a.RegisterMatchType("dns-req", util.AlertJSONProviderDNSReq{})
 	a.RegisterMatchType("dns-resp", util.AlertJSONProviderDNSResp{})
-	a.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSni{})
+	a.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSNI{})
 	a.RegisterMatchType("http-host", util.AlertJSONProviderHTTPHost{})
 	a.RegisterMatchType("http-url", util.AlertJSONProviderHTTPURL{})
 	a.RegisterMatchType("generic", alertifyAlertJSONProvider{})
@@ -59,7 +59,7 @@ func emitAlertsForEvent(a *util.Alertifier, e types.Entry, ioc string,
 	var err error
 	var alert *types.Entry
 	var specificMatch = false
-	if e.TLSSni == ioc {
+	if e.TLSSNI == ioc {
 		specificMatch = true
 		alert, err = a.MakeAlert(e, ioc, "tls-sni")
 		if err != nil {

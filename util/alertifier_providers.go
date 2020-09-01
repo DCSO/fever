@@ -52,11 +52,11 @@ func (a AlertJSONProviderDNSResp) GetAlertJSON(inputEvent types.Entry,
 		"%s Possibly bad DNS response for %s")
 }
 
-// AlertJSONProviderTLSSni is an AlertJSONProvider for TLS SNI matches.
-type AlertJSONProviderTLSSni struct{}
+// AlertJSONProviderTLSSNI is an AlertJSONProvider for TLS SNI matches.
+type AlertJSONProviderTLSSNI struct{}
 
 // GetAlertJSON returns the "alert" subobject for an alert EVE event.
-func (a AlertJSONProviderTLSSni) GetAlertJSON(inputEvent types.Entry,
+func (a AlertJSONProviderTLSSNI) GetAlertJSON(inputEvent types.Entry,
 	prefix string, ioc string) ([]byte, error) {
 	return GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
 		"%s Possibly bad TLS SNI: %s")

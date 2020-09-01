@@ -172,7 +172,7 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 				return
 			}
 		case 19:
-			e.TLSSni, err = jsonparser.ParseString(value)
+			e.TLSSNI, err = jsonparser.ParseString(value)
 			if err != nil {
 				parseerr = err
 				return

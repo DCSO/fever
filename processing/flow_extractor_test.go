@@ -64,6 +64,33 @@ func makeBloomFilter() *bloom.BloomFilter {
 	return &bf
 }
 
+func flowExtractorWaitForResults(results *[]string, expectedFlows []types.Entry,
+	resultsLock *sync.Mutex) []types.FlowEvent {
+	defer resultsLock.Unlock()
+	var flows []types.FlowEvent
+	for {
+		flows = make([]types.FlowEvent, 0)
+		resultsLock.Lock()
+		for i := range *results {
+			result := (*results)[i]
+			buffer := bytes.NewBufferString(result)
+			for {
+				var fe types.FlowEvent
+				err := fe.Unmarshal(buffer)
+				if err != nil {
+					break
+				}
+				flows = append(flows, fe)
+			}
+			if len(flows) == len(expectedFlows) {
+				return flows
+			}
+		}
+		resultsLock.Unlock()
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func TestFlowExtractor(t *testing.T) {
 	serverURL := "amqp://sensor:sensor@127.0.0.1:11111/%2f/"
 
@@ -126,29 +153,7 @@ func TestFlowExtractor(t *testing.T) {
 		}
 	}
 
-	var flows []types.FlowEvent
-CheckLoop:
-	for {
-		flows = make([]types.FlowEvent, 0)
-		resultsLock.Lock()
-		for i := range results {
-			result := results[i]
-			buffer := bytes.NewBufferString(result)
-			for {
-				var fe types.FlowEvent
-				err := fe.Unmarshal(buffer)
-				if err != nil {
-					break
-				}
-				flows = append(flows, fe)
-				if len(flows) == len(expectedFlows) {
-					break CheckLoop
-				}
-			}
-		}
-		resultsLock.Unlock()
-		time.Sleep(100 * time.Millisecond)
-	}
+	flows := flowExtractorWaitForResults(&results, expectedFlows, &resultsLock)
 
 	stopChan := make(chan bool)
 	mla.Stop(stopChan)

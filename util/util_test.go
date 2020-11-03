@@ -43,6 +43,7 @@ var entries = []types.Entry{
 		HTTPUrl:    `/jokes/random?firstName=Chuck&lastName=Norris&limitTo=[nerdy]`,
 		HTTPMethod: `GET`,
 		Iface:      "enp2s0f1",
+		AppProto:   "http",
 		FlowID:     "2323",
 	},
 	types.Entry{

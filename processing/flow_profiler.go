@@ -24,16 +24,17 @@ type ProtoProfile struct {
 // FlowProfiler counts EVE event type statistics, such as number and size
 // of JSON data received from the input.
 type FlowProfiler struct {
-	SensorID      string
-	Host          string
-	Profile       map[string]ProtoProfile
-	FlushPeriod   time.Duration
-	ProfileMutex  sync.Mutex
-	CloseChan     chan bool
-	ClosedChan    chan bool
-	Logger        *log.Entry
-	Submitter     util.StatsSubmitter
-	SubmitChannel chan []byte
+	SensorID          string
+	Host              string
+	Profile           map[string]ProtoProfile
+	FlushPeriod       time.Duration
+	ProfileMutex      sync.Mutex
+	CloseChan         chan bool
+	ClosedChan        chan bool
+	Logger            *log.Entry
+	Submitter         util.StatsSubmitter
+	SubmitChannel     chan []byte
+	SubmitChannelFull bool
 }
 
 // MakeFlowProfiler creates a new FlowProfiler.
@@ -74,9 +75,15 @@ func (a *FlowProfiler) flush() {
 	for _, lineString := range lineStrings {
 		select {
 		case a.SubmitChannel <- []byte(lineString):
-			break
+			if a.SubmitChannelFull {
+				log.Warning("channel was free to submit again")
+				a.SubmitChannelFull = false
+			}
 		default:
-			log.Warning("channel is full, cannot submit message...")
+			if !a.SubmitChannelFull {
+				log.Warning("channel is full, cannot submit message...")
+				a.SubmitChannelFull = true
+			}
 		}
 	}
 }

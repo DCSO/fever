@@ -126,6 +126,18 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			evp.Stop(c)
 			<-c
 		}()
+		flp, err := processing.MakeFlowProfiler(30*time.Second, statssubmitter)
+		if err != nil {
+			log.Fatal(err)
+
+		}
+		dispatcher.RegisterHandler(flp)
+		flp.Run()
+		defer func() {
+			c := make(chan bool)
+			flp.Stop(c)
+			<-c
+		}()
 	}
 
 	// Configure forwarding

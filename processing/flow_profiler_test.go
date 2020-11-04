@@ -67,6 +67,10 @@ func (fpts *flowProfilerTestSubmitter) Finish() {
 	// pass
 }
 
+// TestFlowProfiler checks whether flow profiles are generated correctly.
+// To do this, it consumes a set of example events with randomized event types
+// and sizes, generates a reference set of statistics and then compares it to
+// the values submitted to a test submitter which simply stores these values.
 func TestFlowProfiler(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	myMap := make(map[string]ProtoProfile)

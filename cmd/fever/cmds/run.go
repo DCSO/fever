@@ -487,6 +487,18 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		}).Info("Flow extraction disabled")
 	}
 
+	// Heartbeat injector
+	enableHeartbeat := viper.GetBool("heartbeat.enable")
+	heartbeatTimes := viper.GetStringSlice("heartbeat.times")
+	if enableHeartbeat {
+		hi, err := processing.MakeHeartbeatInjector(forwardHandler, heartbeatTimes)
+		if err != nil {
+			log.Fatal(err)
+		}
+		hi.Run()
+		defer hi.Stop()
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
 	go func() {
@@ -675,6 +687,12 @@ func init() {
 	viper.BindPFlag("stenosis.cache-expiry", runCmd.PersistentFlags().Lookup("stenosis-cache-expiry"))
 	runCmd.PersistentFlags().StringP("stenosis-interface", "", "*", "interface to watch events for")
 	viper.BindPFlag("stenosis.interface", runCmd.PersistentFlags().Lookup("stenosis-interface"))
+
+	// Heartbeat options
+	runCmd.PersistentFlags().BoolP("heartbeat-enable", "", false, "Forward HTTP heartbeat event")
+	viper.BindPFlag("heartbeat.enable", runCmd.PersistentFlags().Lookup("heartbeat-enable"))
+	runCmd.PersistentFlags().StringSliceP("heartbeat-times", "", []string{}, "Times of day to send heartbeat (list of 24h HH:MM strings)")
+	viper.BindPFlag("heartbeat.times", runCmd.PersistentFlags().Lookup("heartbeat-times"))
 
 	// Bloom filter alerting options
 	runCmd.PersistentFlags().StringP("bloom-file", "b", "", "Bloom filter for external indicator screening")

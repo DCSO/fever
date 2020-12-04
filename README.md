@@ -60,6 +60,8 @@ Flags:
   -f, --flushtime duration                       time interval for event aggregation (default 1m0s)
   -T, --fwd-all-types                            forward all event types
   -t, --fwd-event-types strings                  event types to forward to socket (default [alert,stats])
+      --heartbeat-enable                         Forward HTTP heartbeat event
+      --heartbeat-times strings                  Times of day to send heartbeat (list of 24h HH:MM strings)
   -h, --help                                     help for run
   -r, --in-redis string                          Redis input server (assumes "suricata" list key, no pwd)
       --in-redis-nopipe                          do not use Redis pipelining
@@ -81,6 +83,7 @@ Flags:
       --stenosis-client-chain-file string        certificate file for Stenosis TLS connection (default "stenosis.crt")
       --stenosis-client-key-file string          key file for Stenosis TLS connection (default "stenosis.key")
       --stenosis-enable                          notify Stenosis instance on alert
+      --stenosis-interface string                interface to watch events for (default "*")
       --stenosis-root-cas strings                root certificate(s) for TLS connection to stenosis (default [root.crt])
       --stenosis-skipverify                      skip TLS certificate verification
       --stenosis-submission-timeout duration     timeout for connecting to Stenosis (default 5s)

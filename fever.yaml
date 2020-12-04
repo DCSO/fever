@@ -101,6 +101,13 @@ stenosis:
 #add-fields:
 #  sensor-id: foobar
 
+# Send 'heartbeat' HTTP event
+heartbeat:
+  enable: false
+  # 24h HH:MM strings with local times to send heartbeat
+  times:
+    - "00:01"
+
 # Configuration for detailed flow metadata submission.
 flowextract:
   enable: false

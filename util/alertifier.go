@@ -5,6 +5,7 @@ package util
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DCSO/fever/types"
 
@@ -79,31 +80,59 @@ func (a *Alertifier) MakeAlert(inputEvent types.Entry, ioc string,
 	}
 	// clone the original event
 	newEntry := inputEvent
+
 	// set a new event type in Entry
 	newEntry.EventType = "alert"
+	// update JSON text
+	l, err := jsonparser.Set([]byte(newEntry.JSONLine),
+		[]byte(`"alert"`), "event_type")
+	if err != nil {
+		return nil, err
+	}
+	newEntry.JSONLine = string(l)
+
 	// generate alert sub-object JSON
 	val, err := v.GetAlertJSON(inputEvent, a.alertPrefix, ioc)
 	if err != nil {
 		return nil, err
 	}
 	// update JSON text
-	l, err := jsonparser.Set([]byte(newEntry.JSONLine), val, "alert")
+	l, err = jsonparser.Set([]byte(newEntry.JSONLine), val, "alert")
 	if err != nil {
 		return nil, err
 	}
 	newEntry.JSONLine = string(l)
-	l, err = jsonparser.Set([]byte(newEntry.JSONLine),
-		[]byte(`"alert"`), "event_type")
-	if err != nil {
-		return nil, err
-	}
-	newEntry.JSONLine = string(l)
+
+	// add custom extra modifier
 	if a.extraModifier != nil {
 		err = a.extraModifier(&newEntry, ioc)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	// ensure consistent timestamp formatting: try to parse as Suricata timestamp
+	inTimestampParsed, err := time.Parse(types.SuricataTimestampFormat, newEntry.Timestamp)
+	if err != nil {
+		// otherwise try to parse without zone information
+		inTimestampParsed, err = time.Parse("2006-01-02T15:04:05.999999", newEntry.Timestamp)
+		if err == nil {
+			suriTimestampFormatted := inTimestampParsed.Format(types.SuricataTimestampFormat)
+			escapedTimestamp, err := EscapeJSON(suriTimestampFormatted)
+			if err != nil {
+				return nil, err
+			}
+			l, err = jsonparser.Set([]byte(newEntry.JSONLine), escapedTimestamp, "timestamp")
+			if err != nil {
+				return nil, err
+			}
+			newEntry.Timestamp = suriTimestampFormatted
+			newEntry.JSONLine = string(l)
+		} else {
+			log.Warningf("keeping non-offset timestamp '%s', could not be transformed: %s", newEntry.Timestamp, err.Error())
+		}
+	}
+
 	return &newEntry, nil
 }
 

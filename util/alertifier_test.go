@@ -136,6 +136,54 @@ func TestAlertifierSimple(t *testing.T) {
 		"'foo.bar' in 'http://foo.bar/baz'", "foo.bar")
 }
 
+func TestAlertifierTimestampMissingOffset(t *testing.T) {
+	a := MakeAlertifier("TEST")
+	a.SetExtraModifier(testExtraModifier)
+	a.RegisterMatchType("http_host", TestAlertJSONProviderHost{})
+	a.RegisterMatchType("http_path", TestAlertJSONProviderURLPath{})
+	e := makeTestHTTPEvent("foo.bar", "http://foo.bar/baz")
+
+	newTimestamp := time.Now().Format("2006-01-02T15:04:05.999999")
+	e.Timestamp = newTimestamp
+	nts, err := EscapeJSON(newTimestamp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := jsonparser.Set([]byte(e.JSONLine), nts, "timestamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.JSONLine = string(l)
+
+	// check if value has offset-naive format
+	_, err = time.Parse(types.SuricataTimestampFormat, e.Timestamp)
+	if err == nil {
+		t.Fatal("timestamp should not be in Suricata format")
+	}
+
+	// alertify, this should convert the timestamp to common offset-aware format
+	alert, err := a.MakeAlert(e, "foo.bar", "http_host")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if Entry field is correct now
+	_, err = time.Parse(types.SuricataTimestampFormat, alert.Timestamp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if JSON field is correct now
+	v, _, _, err := jsonparser.Get([]byte(alert.JSONLine), "timestamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = time.Parse(types.SuricataTimestampFormat, string(v))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAlertifierUnknownMatchtype(t *testing.T) {
 	a := MakeAlertifier("TEST")
 	a.SetExtraModifier(testExtraModifier)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/NeowayLabs/wabbit"
 	"github.com/NeowayLabs/wabbit/amqp"
+	"github.com/NeowayLabs/wabbit/utils"
 	log "github.com/sirupsen/logrus"
 	origamqp "github.com/streadway/amqp"
 )
@@ -66,7 +67,6 @@ func reconnectOnFailure(s *AMQPBaseSubmitter) {
 				log.Warnf("RabbitMQ connection failed: %s", rabbitErr.Reason())
 				s.ChanMutex.Lock()
 				for {
-					time.Sleep(amqpReconnDelay)
 					connErr := s.connect()
 					if connErr != nil {
 						log.Warnf("RabbitMQ error: %s", connErr)
@@ -77,6 +77,7 @@ func reconnectOnFailure(s *AMQPBaseSubmitter) {
 						s.ErrorChan = errChan
 						break
 					}
+					time.Sleep(amqpReconnDelay)
 				}
 				s.ChanMutex.Unlock()
 			}
@@ -133,13 +134,9 @@ func MakeAMQPSubmitterWithReconnector(url string, target string, verbose bool,
 		if err != nil {
 			return nil, err
 		}
-		err = mySubmitter.connect()
-		if err != nil {
-			return nil, err
-		}
 
-		mySubmitter.Conn.NotifyClose(mySubmitter.ErrorChan)
 		go reconnectOnFailure(mySubmitter)
+		mySubmitter.ErrorChan <- utils.NewError(0, "Initial connect", true, true)
 
 		gSubmitters[url] = mySubmitter
 		mySubmitter.NofSubmitters++

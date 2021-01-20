@@ -1,7 +1,7 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, 2020, DCSO GmbH
+// Copyright (c) 2017, 2021, DCSO GmbH
 
 import (
 	"bytes"

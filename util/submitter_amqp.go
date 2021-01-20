@@ -135,7 +135,11 @@ func MakeAMQPSubmitterWithReconnector(url string, target string, verbose bool,
 			return nil, err
 		}
 
+		// Start reconnect loop in separate goroutine.
 		go reconnectOnFailure(mySubmitter)
+		// The reconnect loop started in the line above will only trigger when
+		// something is received on the error channel. We'll emit a fake error
+		// to trigger the initial connect to avoid code duplication.
 		mySubmitter.ErrorChan <- utils.NewError(0, "Initial connect", true, true)
 
 		gSubmitters[url] = mySubmitter

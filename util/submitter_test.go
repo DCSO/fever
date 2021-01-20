@@ -5,7 +5,6 @@ package util
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,17 +14,6 @@ import (
 	"github.com/NeowayLabs/wabbit/amqptest"
 	"github.com/NeowayLabs/wabbit/amqptest/server"
 )
-
-func TestInvalidReconnector(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-	submitter, err := MakeAMQPSubmitterWithReconnector("amqp://sensor:sensor@localhost:9999/%2f",
-		"foo.bar.test", true, func(url string) (wabbit.Conn, error) {
-			return nil, fmt.Errorf("error")
-		})
-	if submitter != nil || err == nil {
-		t.Fail()
-	}
-}
 
 func TestSubmitter(t *testing.T) {
 	serverURL := "amqp://sensor:sensor@localhost:9999/%2f/"

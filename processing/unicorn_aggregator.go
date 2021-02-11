@@ -86,22 +86,40 @@ func (a *UnicornAggregator) stop() {
 }
 
 func (a *UnicornAggregator) submit(submitter util.StatsSubmitter, dummyMode bool) {
+	// Lock the current measurements for submission. Since this is a blocking
+	// operation, we don't want this to depend on how long submitter.Submit()
+	// takes but keep it independent of that. Hence we take the time to create
+	// a local copy of the aggregate to be able to reset and release the live
+	// one as quickly as possible.
 	a.UnicornTuplesMutex.Lock()
 	a.UnicornProxyMapMutex.Lock()
-	jsonString, myerror := json.Marshal(a.Aggregate)
+	// Make our own copy of the current aggregate, claiming ownership of the
+	// maps with the measurements
+	myAgg := UnicornAggregate{
+		SensorID:       a.Aggregate.SensorID,
+		TimestampStart: a.Aggregate.TimestampStart,
+		TimestampEnd:   a.Aggregate.TimestampEnd,
+		ProxyMap:       a.Aggregate.ProxyMap,
+		FlowTuples:     a.Aggregate.FlowTuples,
+	}
+	// Replace live maps with empty ones
+	a.Aggregate.FlowTuples = make(map[string](map[string]int64))
+	a.Aggregate.ProxyMap = make(map[string](map[string]int64))
+	// Release aggregate to not block further blocking ops on map contents
+	a.UnicornTuplesMutex.Unlock()
+	a.UnicornProxyMapMutex.Unlock()
+
+	jsonString, myerror := json.Marshal(myAgg)
 	if myerror == nil {
 		a.Logger.WithFields(log.Fields{
-			"flowtuples":   len(a.Aggregate.FlowTuples),
-			"http-destips": len(a.Aggregate.ProxyMap)},
+			"flowtuples":   len(myAgg.FlowTuples),
+			"http-destips": len(myAgg.ProxyMap)},
 		).Info("preparing to submit")
 		submitter.Submit(jsonString, "unicorn", "application/json")
 	} else {
 		a.Logger.Warn("error marshaling JSON for metadata aggregation")
 	}
-	a.Aggregate.FlowTuples = make(map[string](map[string]int64))
-	a.Aggregate.ProxyMap = make(map[string](map[string]int64))
-	a.UnicornTuplesMutex.Unlock()
-	a.UnicornProxyMapMutex.Unlock()
+
 }
 
 // CountFlowTuple increments the flow tuple counter for the given key.

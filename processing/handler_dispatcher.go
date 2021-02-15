@@ -50,7 +50,7 @@ func (h *DBHandler) GetEventTypes() []string {
 	return []string{"not applicable"}
 }
 
-// Consume simply emits ths consumed entry on the default output channel
+// Consume simply emits the consumed entry on the default output channel
 func (h *DBHandler) Consume(e *types.Entry) error {
 	h.OutChan <- *e
 	return nil
@@ -68,12 +68,24 @@ func (ad *HandlerDispatcher) runCounter() {
 			if ad.StatsEncoder == nil || time.Since(sTime) < ad.StatsEncoder.SubmitPeriod {
 				continue
 			}
+			// Lock the current measurements for submission. Since this is a blocking
+			// operation, we don't want this to depend on how long submitter.Submit()
+			// takes but keep it independent of that. Hence we take the time to create
+			// a local copy of the counter to be able to reset and release the live
+			// one as quickly as possible.
 			ad.Lock.Lock()
-			ad.PerfStats.DispatchedPerSec /= uint64(ad.StatsEncoder.SubmitPeriod.Seconds())
-			ad.StatsEncoder.Submit(ad.PerfStats)
+			// Make our own copy of the current counter
+			myStats := HandlerDispatcherPerfStats{
+				DispatchedPerSec: ad.PerfStats.DispatchedPerSec,
+			}
+			myStats.DispatchedPerSec /= uint64(ad.StatsEncoder.SubmitPeriod.Seconds())
+			// Reset live counter
 			ad.PerfStats.DispatchedPerSec = 0
-			sTime = time.Now()
+			// Release live counter to not block further events
 			ad.Lock.Unlock()
+
+			ad.StatsEncoder.Submit(myStats)
+			sTime = time.Now()
 		}
 	}
 }

@@ -158,12 +158,24 @@ func (fh *ForwardHandler) runCounter() {
 			if fh.StatsEncoder == nil || time.Since(sTime) < fh.StatsEncoder.SubmitPeriod {
 				continue
 			}
+			// Lock the current measurements for submission. Since this is a blocking
+			// operation, we don't want this to depend on how long submitter.Submit()
+			// takes but keep it independent of that. Hence we take the time to create
+			// a local copy of the counter to be able to reset and release the live
+			// one as quickly as possible.
 			fh.Lock.Lock()
-			fh.PerfStats.ForwardedPerSec /= uint64(fh.StatsEncoder.SubmitPeriod.Seconds())
-			fh.StatsEncoder.Submit(fh.PerfStats)
+			// Make our own copy of the current counter
+			myStats := ForwardHandlerPerfStats{
+				ForwardedPerSec: fh.PerfStats.ForwardedPerSec,
+			}
+			myStats.ForwardedPerSec /= uint64(fh.StatsEncoder.SubmitPeriod.Seconds())
+			// Reset live counter
 			fh.PerfStats.ForwardedPerSec = 0
-			sTime = time.Now()
+			// Release live counter to not block further events
 			fh.Lock.Unlock()
+
+			fh.StatsEncoder.Submit(fh.PerfStats)
+			sTime = time.Now()
 		}
 	}
 }

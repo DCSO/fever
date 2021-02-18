@@ -6,6 +6,7 @@ package processing
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -141,7 +142,7 @@ func (a *FlowAggregator) countFlow(key string, e *types.Entry) {
 func (a *FlowAggregator) Consume(e *types.Entry) error {
 	a.StringBuf.Write([]byte(e.SrcIP))
 	a.StringBuf.Write([]byte(e.DestIP))
-	a.StringBuf.Write([]byte(string(e.DestPort)))
+	a.StringBuf.Write([]byte(fmt.Sprint(e.DestPort)))
 	a.countFlow(a.StringBuf.String(), e)
 	a.StringBuf.Reset()
 	return nil

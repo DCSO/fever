@@ -7,7 +7,7 @@ jobs:
     docker:
       - image: circleci/golang:1.15-buster
     environment:
-      GO111MODULE: on
+      GO111MODULE: "on"
     working_directory: /go/src/github.com/DCSO/fever
     steps:
       - checkout

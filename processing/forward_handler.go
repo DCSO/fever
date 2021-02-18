@@ -174,7 +174,7 @@ func (fh *ForwardHandler) runCounter() {
 			// Release live counter to not block further events
 			fh.Lock.Unlock()
 
-			fh.StatsEncoder.Submit(fh.PerfStats)
+			fh.StatsEncoder.Submit(myStats)
 			sTime = time.Now()
 		}
 	}

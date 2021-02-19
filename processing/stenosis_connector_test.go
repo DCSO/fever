@@ -196,6 +196,9 @@ func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string
 	// send flow notification with matching flow ID to signal end of flow
 	notifyChan <- flowEntry
 
+	// wait for socket consumer to receive all
+	wg.Wait()
+
 	// stop forwarding handler
 	scChan := make(chan bool)
 	fh.Stop(scChan)
@@ -203,9 +206,6 @@ func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string
 
 	// we can now close this
 	grpcServer.Close()
-
-	// wait for socket consumer to receive all
-	wg.Wait()
 
 	return coll
 }

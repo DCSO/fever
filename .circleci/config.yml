@@ -5,14 +5,14 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.10-stretch
-
+      - image: circleci/golang:latest
+    environment:
+      GO111MODULE: "on"
     working_directory: /go/src/github.com/DCSO/fever
     steps:
       - checkout
       - run:
           name: Install test dependencies
           command: 'sudo apt-get update && sudo apt-get install redis-server -y'
-
       - run: go get -v -t -d ./...
       - run: go test -v ./...

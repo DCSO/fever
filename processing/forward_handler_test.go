@@ -144,13 +144,13 @@ func TestForwardHandler(t *testing.T) {
 	e = makeEvent("alert", "foo3")
 	fh.Consume(&e)
 
+	// wait for socket consumer to receive all
+	wg.Wait()
+
 	// stop forwarding handler
 	scChan := make(chan bool)
 	fh.Stop(scChan)
 	<-scChan
-
-	// wait for socket consumer to receive all
-	wg.Wait()
 
 	if len(coll) != 2 {
 		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
@@ -224,13 +224,13 @@ func TestForwardHandlerWithAddedFields(t *testing.T) {
 	e = makeEvent("alert", "foo2")
 	fh.Consume(&e)
 
+	// wait for socket consumer to receive all
+	wg.Wait()
+
 	// stop forwarding handler
 	scChan := make(chan bool)
 	fh.Stop(scChan)
 	<-scChan
-
-	// wait for socket consumer to receive all
-	wg.Wait()
 
 	if len(coll) != 2 {
 		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
@@ -303,6 +303,8 @@ func TestForwardAllHandler(t *testing.T) {
 	e = makeEvent("alert", "foo3")
 	fh.Consume(&e)
 
+	wg.Wait()
+
 	// stop forwarding handler
 	scChan := make(chan bool)
 	fh.Stop(scChan)
@@ -311,7 +313,6 @@ func TestForwardAllHandler(t *testing.T) {
 	// stop socket consumer
 	inputListener.Close()
 	close(clCh)
-	wg.Wait()
 
 	if len(coll) != 3 {
 		t.Fatalf("unexpected number of alerts: %d != 3", len(coll))

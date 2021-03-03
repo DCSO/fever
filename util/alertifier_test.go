@@ -1,7 +1,7 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2020, DCSO GmbH
+// Copyright (c) 2020, 2021, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -17,12 +17,13 @@ import (
 )
 
 func makeTestHTTPEvent(host string, url string) types.Entry {
+	testTime, _ := time.Parse("2006-Jan-02", "2013-Feb-03")
 	e := types.Entry{
 		SrcIP:      fmt.Sprintf("10.0.0.%d", rand.Intn(5)+1),
 		SrcPort:    int64(rand.Intn(60000) + 1025),
 		DestIP:     fmt.Sprintf("10.0.0.%d", rand.Intn(50)),
 		DestPort:   80,
-		Timestamp:  time.Now().Format(types.SuricataTimestampFormat),
+		Timestamp:  testTime.Format(types.SuricataTimestampFormat),
 		EventType:  "http",
 		Proto:      "TCP",
 		HTTPHost:   host,
@@ -99,6 +100,24 @@ func checkAlertifierAlerts(t *testing.T, a *types.Entry, msg string, ioc string)
 	}
 	if resAlert.ExtraInfo.VastIOC != ioc {
 		t.Fatalf("wrong ioc ('%s' <-> '%s')", resAlert.ExtraInfo.VastIOC, ioc)
+	}
+	eventTimeVal, _, _, err := jsonparser.Get([]byte(a.JSONLine), "timestamp_event")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(eventTimeVal) != "2013-02-03T00:00:00+0000" {
+		t.Fatalf("wrong event timestamp ('%s' <-> '%s')", string(eventTimeVal), "2013-02-03T00:00:00+0000")
+	}
+	alertTimeVal, _, _, err := jsonparser.Get([]byte(a.JSONLine), "timestamp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alertTime, err := time.Parse(types.SuricataTimestampFormat, string(alertTimeVal))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !alertTime.Add(48 * time.Hour).After(time.Now()) {
+		t.Fatalf("wrong alert unexpected ('%s' < '%s')", alertTime.Add(48*time.Hour), time.Now())
 	}
 }
 

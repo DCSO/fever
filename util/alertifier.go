@@ -112,27 +112,38 @@ func (a *Alertifier) MakeAlert(inputEvent types.Entry, ioc string,
 	}
 
 	// ensure consistent timestamp formatting: try to parse as Suricata timestamp
+	eventTimestampFormatted := newEntry.Timestamp
 	inTimestampParsed, err := time.Parse(types.SuricataTimestampFormat, newEntry.Timestamp)
 	if err != nil {
 		// otherwise try to parse without zone information
 		inTimestampParsed, err = time.Parse("2006-01-02T15:04:05.999999", newEntry.Timestamp)
 		if err == nil {
-			suriTimestampFormatted := inTimestampParsed.Format(types.SuricataTimestampFormat)
-			escapedTimestamp, err := EscapeJSON(suriTimestampFormatted)
-			if err != nil {
-				return nil, err
-			}
-			l, err = jsonparser.Set([]byte(newEntry.JSONLine), escapedTimestamp, "timestamp")
-			if err != nil {
-				return nil, err
-			}
-			newEntry.Timestamp = suriTimestampFormatted
-			newEntry.JSONLine = string(l)
+			eventTimestampFormatted = inTimestampParsed.Format(types.SuricataTimestampFormat)
 		} else {
 			log.Warningf("keeping non-offset timestamp '%s', could not be transformed: %s", newEntry.Timestamp, err.Error())
 		}
 	}
-
+	// Set received original timestamp as "timestamp_event" field
+	escapedTimestamp, err := EscapeJSON(eventTimestampFormatted)
+	if err != nil {
+		return nil, err
+	}
+	l, err = jsonparser.Set([]byte(newEntry.JSONLine), escapedTimestamp, "timestamp_event")
+	if err != nil {
+		return nil, err
+	}
+	// Add current (alerting) timestamp as "timestamp" field
+	nowTimestampEscaped, err := EscapeJSON(time.Now().UTC().Format(types.SuricataTimestampFormat))
+	if err != nil {
+		return nil, err
+	}
+	l, err = jsonparser.Set(l, []byte(nowTimestampEscaped), "timestamp")
+	if err != nil {
+		return nil, err
+	}
+	// update returned entry
+	newEntry.Timestamp = eventTimestampFormatted
+	newEntry.JSONLine = string(l)
 	return &newEntry, nil
 }
 

@@ -2,13 +2,55 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.0.18] - TBD
+
+### Added
+- Added `version` subcommand.
+
+## [1.0.17] - 2020-03-04
+
+### Changed
+- change timestamp handling when alertifying (#72)
+
+## [1.0.16] - 2021-02-19
+
+### Changed
+- Remove potentially blocking calls/locks (#71)
+- Use Go modules.
+
+## [1.0.15] - 2021-01-22
+
+### Changed
+- Make sure timestamps created by alertifier match regular Suricata timestamps.
+- Ensure FEVER starts up with unreachable AMQP endpoint (#69)
+
+## [1.0.14] - 2020-12-04
+
+### Added
+- Add heartbeat injector (#67)
+
+## [1.0.13] - 2020-11-05
+
+### Added
+- Add flow profiling metrics gathering (#66)
+
+## [1.0.12] - 2020-10-13
+
+### Added
+- Add interface filtering for Stenosis connector (#60)
+- Add alertify tool (#62)
+
+### Changed
+- Various bugfixes (#63, #64)
+
 ## [1.0.11] - 2020-08-11
 
 ### Added
 - CHANGELOG.md now available.
+- Add option to inject arbitrary fields into EVE-JSON (#49)
 
 ### Changed
-- Add option to inject arbitrary fields into EVE-JSON (#49)
+
 - Various code simplifications and robustness improvements.
 
 ## [1.0.10] - 2020-06-11

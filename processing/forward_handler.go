@@ -126,16 +126,16 @@ func (fh *ForwardHandler) runForward() {
 						_, err = fh.OutputConn.Write(item)
 						if err != nil {
 							fh.OutputConn.Close()
+							fh.Lock.Unlock()
 							log.Warn(err)
 							fh.ReconnectNotifyChan <- true
-							fh.Lock.Unlock()
 							continue
 						}
 						_, err = fh.OutputConn.Write([]byte("\n"))
 						if err != nil {
 							fh.OutputConn.Close()
-							log.Warn(err)
 							fh.Lock.Unlock()
+							log.Warn(err)
 							continue
 						}
 					}

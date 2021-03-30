@@ -2,6 +2,8 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.0.19] - TBD
+
 
 ## [1.0.18] - 2020-03-30
 

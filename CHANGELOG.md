@@ -2,10 +2,14 @@
 
 All notable changes to FEVER will be documented in this file.
 
-## [1.0.18] - TBD
+
+## [1.0.18] - 2020-03-30
 
 ### Added
-- Added `version` subcommand.
+- Added `version` subcommand (#73)
+
+### Changed
+- Prevent deadlock on main event stream during reconnect (#75)
 
 ## [1.0.17] - 2020-03-04
 

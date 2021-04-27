@@ -61,3 +61,13 @@ func (a AlertJSONProviderTLSSNI) GetAlertJSON(inputEvent types.Entry,
 	return GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
 		"%s Possibly bad TLS SNI: %s")
 }
+
+// AlertJSONProviderTLSFingerprint is an AlertJSONProvider for TLS Fingerprint matches.
+type AlertJSONProviderTLSFingerprint struct{}
+
+// GetAlertJSON returns the "alert" subobject for an alert EVE event.
+func (a AlertJSONProviderTLSFingerprint) GetAlertJSON(inputEvent types.Entry,
+	prefix string, ioc string) ([]byte, error) {
+	return GenericGetAlertObjForIoc(inputEvent, prefix, ioc,
+		"%s Possibly bad TLS Fingerprint: %s")
+}

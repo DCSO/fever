@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -23,11 +24,12 @@ import (
 )
 
 var (
-	reHTTPURL  = regexp.MustCompile(`Possibly bad HTTP URL: [^ ]+ . ([^ ]+) . ([^" ]+)`)
-	reHTTPHost = regexp.MustCompile(`Possibly bad HTTP host: ([^" ]+)`)
-	reDNSReq   = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
-	reDNSRep   = regexp.MustCompile("Possibly bad DNS response for ([^\" ]+)")
-	reSNI      = regexp.MustCompile("Possibly bad TLS SNI: ([^\" ]+)")
+	reHTTPURL     = regexp.MustCompile(`Possibly bad HTTP URL: [^ ]+ . ([^ ]+) . ([^" ]+)`)
+	reHTTPHost    = regexp.MustCompile(`Possibly bad HTTP host: ([^" ]+)`)
+	reDNSReq      = regexp.MustCompile("Possibly bad DNS lookup to ([^\" ]+)")
+	reDNSRep      = regexp.MustCompile("Possibly bad DNS response for ([^\" ]+)")
+	reSNI         = regexp.MustCompile("Possibly bad TLS SNI: ([^\" ]+)")
+	reFingerprint = regexp.MustCompile("Possibly bad TLS Fingerprint: ([^\" ]+)")
 )
 
 func makeBloomDNSEvent(rrname string) types.Entry {
@@ -109,16 +111,17 @@ func makeBloomHTTPEvent(host string, url string) types.Entry {
 	return e
 }
 
-func makeBloomTLSEvent(host string) types.Entry {
+func makeBloomTLSEvent(host string, fingerprint string) types.Entry {
 	e := types.Entry{
-		SrcIP:     fmt.Sprintf("10.0.0.%d", rand.Intn(5)+1),
-		SrcPort:   int64(rand.Intn(60000) + 1025),
-		DestIP:    fmt.Sprintf("10.0.0.%d", rand.Intn(50)),
-		DestPort:  443,
-		Timestamp: time.Now().Format(types.SuricataTimestampFormat),
-		EventType: "tls",
-		Proto:     "TCP",
-		TLSSNI:    host,
+		SrcIP:          fmt.Sprintf("10.0.0.%d", rand.Intn(5)+1),
+		SrcPort:        int64(rand.Intn(60000) + 1025),
+		DestIP:         fmt.Sprintf("10.0.0.%d", rand.Intn(50)),
+		DestPort:       443,
+		Timestamp:      time.Now().Format(types.SuricataTimestampFormat),
+		EventType:      "tls",
+		Proto:          "TCP",
+		TLSSNI:         host,
+		TLSFingerprint: fingerprint,
 	}
 	eve := types.EveEvent{
 		Timestamp: &types.SuriTime{
@@ -131,7 +134,8 @@ func makeBloomTLSEvent(host string) types.Entry {
 		DestPort:  int(e.DestPort),
 		Proto:     e.Proto,
 		TLS: &types.TLSEvent{
-			Sni: e.TLSSNI,
+			Sni:         e.TLSSNI,
+			Fingerprint: e.TLSFingerprint,
 		},
 	}
 	json, err := json.Marshal(eve)
@@ -146,6 +150,7 @@ func makeBloomTLSEvent(host string) types.Entry {
 var testURLs []string
 var testHosts []string
 var testTLSHosts []string
+var testTLSFingerprints []string
 
 const numOfTestBloomItems = 1000
 
@@ -183,6 +188,25 @@ func fillBloom(b *bloom.BloomFilter) {
 		i++
 		testURLs = append(testURLs, val)
 		b.Add([]byte(val))
+	}
+	i = 0
+	for i < numOfTestBloomItems {
+		nums := make([]string, 20)
+		for j := 0; j < 20; j++ {
+			// this produces also non hex strings, but thats fine for testing bloom
+			nums[j] = util.RandStringBytesMaskImprSrc(2)
+		}
+		// Example		8f:51:12:06:a0:cc:4e:cd:e8:a3:8b:38:f8:87:59:e5:af:95:ca:cd
+		fingp := strings.Join(nums, ":")
+		for b.Check([]byte(fingp)) {
+			for j := 0; j < 20; j++ {
+				nums[j] = util.RandStringBytesMaskImprSrc(2)
+			}
+			fingp = strings.Join(nums, ":")
+		}
+		i++
+		testTLSFingerprints = append(testTLSFingerprints, fingp)
+		b.Add([]byte(fingp))
 	}
 }
 
@@ -242,6 +266,11 @@ func (h *CollectorHandler) Consume(e *types.Entry) error {
 		return nil
 	}
 	match = reSNI.FindStringSubmatch(e.JSONLine)
+	if match != nil {
+		h.Entries[match[1]] = true
+		return nil
+	}
+	match = reFingerprint.FindStringSubmatch(e.JSONLine)
 	if match != nil {
 		h.Entries[match[1]] = true
 		return nil
@@ -314,6 +343,7 @@ func TestBloomHandler(t *testing.T) {
 	i := 0
 	j := 0
 	k := 0
+	l := 0
 	for {
 		var e types.Entry
 		// emit Bloom filter TP event with 20% individual probability, at most
@@ -323,7 +353,7 @@ func TestBloomHandler(t *testing.T) {
 				break
 			}
 			// uniformly distribute hits over HTTP URL/Host and DNS lookups
-			switch rnd := rand.Intn(3); rnd {
+			switch rnd := rand.Intn(4); rnd {
 			case 0:
 				if i < numOfTestBloomItems {
 					e = makeBloomDNSEvent(testHosts[i])
@@ -338,14 +368,20 @@ func TestBloomHandler(t *testing.T) {
 				}
 			case 2:
 				if k < numOfTestBloomItems {
-					e = makeBloomTLSEvent(testTLSHosts[k])
+					e = makeBloomTLSEvent(testTLSHosts[k], ":::")
 					bh.Consume(&e)
 					k++
+				}
+			case 3:
+				if l < numOfTestBloomItems {
+					e = makeBloomTLSEvent("foo.com", testTLSFingerprints[l])
+					bh.Consume(&e)
+					l++
 				}
 			}
 		} else {
 			// uniformly distribute non-matching hits over HTTP URL/Host and DNS lookups
-			switch rnd := rand.Intn(3); rnd {
+			switch rnd := rand.Intn(4); rnd {
 			case 0:
 				s := fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
 				for bf.Check([]byte(s)) {
@@ -368,7 +404,14 @@ func TestBloomHandler(t *testing.T) {
 					s = fmt.Sprintf("%s.%s", util.RandStringBytesMaskImprSrc(6),
 						util.RandStringBytesMaskImprSrc(2))
 				}
-				e = makeBloomTLSEvent(s)
+				e = makeBloomTLSEvent(s, ":::")
+				bh.Consume(&e)
+			case 3:
+				f := fmt.Sprintf("%s", util.RandStringBytesMaskImprSrc(6))
+				for bf.Check([]byte(f)) {
+					f = fmt.Sprintf("%s", util.RandStringBytesMaskImprSrc(6))
+				}
+				e = makeBloomTLSEvent("foo.com", f)
 				bh.Consume(&e)
 			}
 		}
@@ -379,7 +422,7 @@ func TestBloomHandler(t *testing.T) {
 	<-consumeWaitChan
 
 	// check that we haven't missed anything
-	if len(fwhandler.Entries) < 3*numOfTestBloomItems {
+	if len(fwhandler.Entries) < 4*numOfTestBloomItems {
 		t.Fatalf("expected %d forwarded BLF alerts, seen less (%d)", numOfTestBloomItems,
 			len(fwhandler.Entries))
 	}

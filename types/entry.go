@@ -42,4 +42,5 @@ type Entry struct {
 	FlowID        string
 	Iface         string
 	AppProto      string
+	TLSFingerprint string
 }

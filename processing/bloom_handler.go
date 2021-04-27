@@ -84,6 +84,7 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 	bh.Alertifier.RegisterMatchType("dns-req", util.AlertJSONProviderDNSReq{})
 	bh.Alertifier.RegisterMatchType("dns-resp", util.AlertJSONProviderDNSResp{})
 	bh.Alertifier.RegisterMatchType("tls-sni", util.AlertJSONProviderTLSSNI{})
+	bh.Alertifier.RegisterMatchType("tls-fingerprint", util.AlertJSONProviderTLSFingerprint{})
 	bh.Alertifier.RegisterMatchType("http-host", util.AlertJSONProviderHTTPHost{})
 	bh.Alertifier.RegisterMatchType("http-url", util.AlertJSONProviderHTTPURL{})
 	log.WithFields(log.Fields{
@@ -268,6 +269,16 @@ func (a *BloomHandler) Consume(e *types.Entry) error {
 			if _, present := a.BlacklistIOCs[e.TLSSNI]; !present {
 				if n, err := a.Alertifier.MakeAlert(*e, e.TLSSNI,
 					"tls-sni"); err == nil {
+					a.DatabaseEventChan <- *n
+					a.ForwardHandler.Consume(n)
+				} else {
+					log.Warn(err)
+				}
+			}
+		} else if a.IocBloom.Check([]byte(e.TLSFingerprint)) {
+			if _, present := a.BlacklistIOCs[e.TLSFingerprint]; !present {
+				if n, err := a.Alertifier.MakeAlert(*e, e.TLSFingerprint,
+					"tls-fingerprint"); err == nil {
 					a.DatabaseEventChan <- *n
 					a.ForwardHandler.Consume(n)
 				} else {

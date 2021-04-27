@@ -50,6 +50,7 @@ var evekeys = [][]string{
 	[]string{"flow_id"},                // 22
 	[]string{"in_iface"},               // 23
 	[]string{"app_proto"},              // 24
+	[]string{"tls", "fingerprint"},     // 25
 }
 
 // EscapeJSON escapes a string as a quoted byte slice for direct use in jsonparser.Set().
@@ -241,6 +242,12 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 			}
 		case 24:
 			e.AppProto, err = jsonparser.ParseString(value)
+			if err != nil {
+				parseerr = err
+				return
+			}
+		case 25:
+			e.TLSFingerprint, err = jsonparser.ParseString(value)
 			if err != nil {
 				parseerr = err
 				return

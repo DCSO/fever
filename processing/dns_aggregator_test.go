@@ -31,7 +31,7 @@ func makeDNSEvent() types.Entry {
 		Proto:     "TCP",
 		DNSRCode:  []string{"NOERROR", "NXDOMAIN"}[rand.Intn(2)],
 		DNSRData:  fmt.Sprintf("10.%d.0.%d", rand.Intn(50), rand.Intn(50)+100),
-		DNSRRName: fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(4)),
+		DNSRRName: fmt.Sprintf("%s.com", util.RndStringFromAlpha(4)),
 		DNSRRType: "answer",
 	}
 	return e

@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/DCSO/fever/types"
 
@@ -272,30 +271,47 @@ func GetSensorID() (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-var src = rand.NewSource(time.Now().UnixNano())
-
-// RandStringBytesMaskImprSrc returns a random string of a given length.
-func RandStringBytesMaskImprSrc(n int) string {
-	letterBytes := "abcdefghijk"
-	letterIdxBits := uint(6)                     // 6 bits to represent a letter index
-	letterIdxMask := int64(1<<letterIdxBits - 1) // All 1-bits, as many as letterIdxBits
-	letterIdxMax := 63 / letterIdxBits           // # of letter indices fitting in 63 bits
-	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
+// RndStringFromRunes returns a string of length n
+// with randomly picked runes from fromRunes slice
+func RndStringFromRunes(fromRunes []rune, n int) string {
+    result := make([]rune, n)
+	numRunes := len(fromRunes)
+	for i := range result {
+		result[i] = fromRunes[rand.Intn(numRunes)]
 	}
-
-	return string(b)
+	return string(result)
 }
+
+// RndStringFromBytes
+func RndStringFromBytes(fromBytes []byte, n int) string {
+    result := make([]byte, n)
+	numBytes := len(fromBytes)
+	for i := range result {
+		result[i] = fromBytes[rand.Intn(numBytes)]
+	}
+	return string(result)
+}
+
+// RndStringFromAlpha
+func RndStringFromAlpha(n int) string {
+    return RndStringFromBytes([]byte("abcdefghijklmnopqrstuvwxyz"), n)
+}
+
+// RndHexString returns a Hex string of length n
+func RndHexString(n int) string {
+    return RndStringFromBytes([]byte("0123456789abcdef"), n)
+}
+
+// RndTLSFingerprint returns a random string in
+// the form of a TLS fingerprint
+func RndTLSFingerprint() string {
+    nums := make([]string, 20)
+	for i := 0 ; i < 20 ; i++ {
+		nums[i] = RndHexString(2)
+	}
+	return strings.Join(nums, ":")
+}
+
 
 // MakeTLSConfig returns a TLS configuration suitable for an endpoint with private
 // key stored in keyFile and corresponding certificate stored in certFile. rcas

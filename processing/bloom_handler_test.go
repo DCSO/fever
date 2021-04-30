@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -161,9 +160,9 @@ func fillBloom(b *bloom.BloomFilter) {
 	testTLSHosts = make([]string, 0)
 	i := 0
 	for i < numOfTestBloomItems {
-		val := fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+		val := fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 		for b.Check([]byte(val)) {
-			val = fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+			val = fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 		}
 		i++
 		testHosts = append(testHosts, val)
@@ -171,9 +170,9 @@ func fillBloom(b *bloom.BloomFilter) {
 	}
 	i = 0
 	for i < numOfTestBloomItems {
-		val := fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+		val := fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 		for b.Check([]byte(val)) {
-			val = fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+			val = fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 		}
 		i++
 		testTLSHosts = append(testTLSHosts, val)
@@ -181,9 +180,9 @@ func fillBloom(b *bloom.BloomFilter) {
 	}
 	i = 0
 	for i < numOfTestBloomItems {
-		val := fmt.Sprintf("http://foo.com/%s.html", util.RandStringBytesMaskImprSrc(6))
+		val := fmt.Sprintf("http://foo.com/%s.html", util.RndStringFromAlpha(6))
 		for b.Check([]byte(val)) {
-			val = fmt.Sprintf("http://foo.com/%s.html", util.RandStringBytesMaskImprSrc(6))
+			val = fmt.Sprintf("http://foo.com/%s.html", util.RndStringFromAlpha(6))
 		}
 		i++
 		testURLs = append(testURLs, val)
@@ -191,20 +190,8 @@ func fillBloom(b *bloom.BloomFilter) {
 	}
 	i = 0
 	for i < numOfTestBloomItems {
-		nums := make([]string, 20)
-		for j := 0; j < 20; j++ {
-			// this produces also non hex strings, but thats fine for testing bloom
-			nums[j] = util.RandStringBytesMaskImprSrc(2)
-		}
-		// Example		8f:51:12:06:a0:cc:4e:cd:e8:a3:8b:38:f8:87:59:e5:af:95:ca:cd
-		fingp := strings.Join(nums, ":")
-		for b.Check([]byte(fingp)) {
-			for j := 0; j < 20; j++ {
-				nums[j] = util.RandStringBytesMaskImprSrc(2)
-			}
-			fingp = strings.Join(nums, ":")
-		}
 		i++
+		fingp := util.RndTLSFingerprint()
 		testTLSFingerprints = append(testTLSFingerprints, fingp)
 		b.Add([]byte(fingp))
 	}
@@ -383,33 +370,33 @@ func TestBloomHandler(t *testing.T) {
 			// uniformly distribute non-matching hits over HTTP URL/Host and DNS lookups
 			switch rnd := rand.Intn(4); rnd {
 			case 0:
-				s := fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+				s := fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 				for bf.Check([]byte(s)) {
-					s = fmt.Sprintf("%s.%s", util.RandStringBytesMaskImprSrc(6),
-						util.RandStringBytesMaskImprSrc(2))
+					s = fmt.Sprintf("%s.%s", util.RndStringFromAlpha(6),
+						util.RndStringFromAlpha(2))
 				}
 				e = makeBloomDNSEvent(s)
 				bh.Consume(&e)
 			case 1:
-				s := fmt.Sprintf("/%s.html", util.RandStringBytesMaskImprSrc(6))
+				s := fmt.Sprintf("/%s.html", util.RndStringFromAlpha(6))
 				for bf.Check([]byte(s)) {
-					s = fmt.Sprintf("/%s.%s.html", util.RandStringBytesMaskImprSrc(6),
-						util.RandStringBytesMaskImprSrc(6))
+					s = fmt.Sprintf("/%s.%s.html", util.RndStringFromAlpha(6),
+						util.RndStringFromAlpha(6))
 				}
 				e = makeBloomHTTPEvent("foo.com", s)
 				bh.Consume(&e)
 			case 2:
-				s := fmt.Sprintf("%s.com", util.RandStringBytesMaskImprSrc(6))
+				s := fmt.Sprintf("%s.com", util.RndStringFromAlpha(6))
 				for bf.Check([]byte(s)) {
-					s = fmt.Sprintf("%s.%s", util.RandStringBytesMaskImprSrc(6),
-						util.RandStringBytesMaskImprSrc(2))
+					s = fmt.Sprintf("%s.%s", util.RndStringFromAlpha(6),
+						util.RndStringFromAlpha(2))
 				}
 				e = makeBloomTLSEvent(s, ":::")
 				bh.Consume(&e)
 			case 3:
-				f := fmt.Sprintf("%s", util.RandStringBytesMaskImprSrc(6))
+				f := fmt.Sprintf("%s", util.RndStringFromAlpha(6))
 				for bf.Check([]byte(f)) {
-					f = fmt.Sprintf("%s", util.RandStringBytesMaskImprSrc(6))
+					f = fmt.Sprintf("%s", util.RndStringFromAlpha(6))
 				}
 				e = makeBloomTLSEvent("foo.com", f)
 				bh.Consume(&e)

@@ -4,6 +4,11 @@ All notable changes to FEVER will be documented in this file.
 
 ## [1.0.19] - TBD
 
+### Added
+- Support Bloom filter matching for TLS fingerprints (#76, #38)
+
+### Changed
+- Reduce log noise by moving AMQP messages to debug log level (#78)
 
 ## [1.0.18] - 2020-03-30
 

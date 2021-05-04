@@ -227,7 +227,7 @@ func (s *AMQPSubmitter) SubmitWithHeaders(rawData []byte, key string, contentTyp
 		s.Submitter.Logger.WithFields(log.Fields{
 			"rawsize":     len(rawData),
 			"payloadsize": len(payload),
-		}).Infof("submission to %s:%s (%s) successful", s.Submitter.URL, s.Target, key)
+		}).Debugf("submission to %s:%s (%s) successful", s.Submitter.URL, s.Target, key)
 	}
 }
 

@@ -107,10 +107,9 @@ func (a *DNSAggregator) flush() {
 	a.Logger.WithFields(log.Fields{
 		"agg_dns": a.PerfStats.DNSAggregateCount,
 		"in_dns":  a.PerfStats.DNSAggregateRawCount,
-	}).Info("flushing events")
+	}).Debug("flushing events")
 	for _, v := range myDNS {
 		jsonString, _ := json.Marshal(v)
-		//  log.Info(string(jsonString))
 		newEntry := types.Entry{
 			Timestamp: v.Timestamp[0],
 			EventType: v.EventType,

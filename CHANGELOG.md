@@ -2,7 +2,10 @@
 
 All notable changes to FEVER will be documented in this file.
 
-## [1.0.19] - TBD
+## [1.0.20] - TBD
+
+
+## [1.0.19] - 2021-05-04
 
 ### Added
 - Support Bloom filter matching for TLS fingerprints (#76, #38)
@@ -10,7 +13,7 @@ All notable changes to FEVER will be documented in this file.
 ### Changed
 - Reduce log noise by moving AMQP messages to debug log level (#78)
 
-## [1.0.18] - 2020-03-30
+## [1.0.18] - 2021-03-30
 
 ### Added
 - Added `version` subcommand (#73)
@@ -18,7 +21,7 @@ All notable changes to FEVER will be documented in this file.
 ### Changed
 - Prevent deadlock on main event stream during reconnect (#75)
 
-## [1.0.17] - 2020-03-04
+## [1.0.17] - 2021-03-04
 
 ### Changed
 - change timestamp handling when alertifying (#72)

@@ -63,6 +63,8 @@ Flags:
       --heartbeat-enable                         Forward HTTP heartbeat event
       --heartbeat-times strings                  Times of day to send heartbeat (list of 24h HH:MM strings)
   -h, --help                                     help for run
+      --in-buffer uint                           input buffer length (counted in EVE objects) (default 500000)
+      --in-buffer-drop                           drop incoming events on FEVER side instead of blocking the input socket (default true)
   -r, --in-redis string                          Redis input server (assumes "suricata" list key, no pwd)
       --in-redis-nopipe                          do not use Redis pipelining
   -i, --in-socket string                         filename of input socket (accepts EVE JSON) (default "/tmp/suri.sock")

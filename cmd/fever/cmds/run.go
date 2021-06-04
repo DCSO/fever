@@ -534,7 +534,8 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	}()
 
 	// create input
-	inputChan := make(chan types.Entry)
+	inputBufferLen := viper.GetUint("input.buffer")
+	inputChan := make(chan types.Entry, inputBufferLen)
 	var sinput input.Input
 	inputRedis := viper.GetString("input.redis.server")
 	noUseRedisPipeline := viper.GetBool("input.redis.nopipe")
@@ -544,7 +545,9 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		sinput.(*input.RedisInput).SubmitStats(pse)
 	} else {
 		inputSocket := viper.GetString("input.socket")
-		sinput, err = input.MakeSocketInput(inputSocket, inputChan)
+		bufDrop := viper.GetBool("input.buffer-drop")
+		sinput, err = input.MakeSocketInput(inputSocket, inputChan, bufDrop)
+		sinput.(*input.SocketInput).SubmitStats(pse)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -583,6 +586,10 @@ func init() {
 	viper.BindPFlag("input.redis.server", runCmd.PersistentFlags().Lookup("in-redis"))
 	runCmd.PersistentFlags().BoolP("in-redis-nopipe", "", false, "do not use Redis pipelining")
 	viper.BindPFlag("input.redis.nopipe", runCmd.PersistentFlags().Lookup("in-redis-nopipe"))
+	runCmd.PersistentFlags().UintP("in-buffer", "", 500000, "input buffer length (counted in EVE objects)")
+	viper.BindPFlag("input.buffer", runCmd.PersistentFlags().Lookup("in-buffer"))
+	runCmd.PersistentFlags().BoolP("in-buffer-drop", "", true, "drop incoming events on FEVER side instead of blocking the input socket")
+	viper.BindPFlag("input.buffer-drop", runCmd.PersistentFlags().Lookup("in-buffer-drop"))
 
 	// Output options
 	runCmd.PersistentFlags().StringP("out-socket", "o", "/tmp/suri-forward.sock", "path to output socket (to forwarder), empty string disables forwarding")

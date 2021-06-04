@@ -29,7 +29,7 @@ func TestSocketInput(t *testing.T) {
 	evChan := make(chan types.Entry)
 	events := make([]string, 1000)
 
-	is, err := MakeSocketInput(tmpfn, evChan)
+	is, err := MakeSocketInput(tmpfn, evChan, false)
 	if err != nil {
 		t.Fatal(err)
 	}

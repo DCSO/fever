@@ -534,21 +534,30 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	}()
 
 	// create input
-	inputChan := make(chan types.Entry)
+	inputBufferLen := viper.GetUint("input.buffer-length")
+	inputChan := make(chan types.Entry, inputBufferLen)
 	var sinput input.Input
 	inputRedis := viper.GetString("input.redis.server")
 	noUseRedisPipeline := viper.GetBool("input.redis.nopipe")
 	if len(inputRedis) > 0 {
-		sinput, err = input.MakeRedisInput(inputRedis, inputChan, int(chunkSize))
-		sinput.(*input.RedisInput).UsePipelining = !noUseRedisPipeline
-		sinput.(*input.RedisInput).SubmitStats(pse)
+		in, err := input.MakeRedisInput(inputRedis, inputChan, int(chunkSize))
+		if err != nil {
+			log.Fatal(err)
+		}
+		in.UsePipelining = !noUseRedisPipeline
+		in.SubmitStats(pse)
+		sinput = in
 	} else {
 		inputSocket := viper.GetString("input.socket")
-		sinput, err = input.MakeSocketInput(inputSocket, inputChan)
+		bufDrop := viper.GetBool("input.buffer-drop")
+		in, err := input.MakeSocketInput(inputSocket, inputChan, bufDrop)
+		if err != nil {
+			log.Fatal(err)
+		}
+		in.SubmitStats(pse)
+		sinput = in
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	log.WithFields(log.Fields{
 		"input": sinput.GetName(),
 	}).Info("selected input driver")
@@ -583,6 +592,10 @@ func init() {
 	viper.BindPFlag("input.redis.server", runCmd.PersistentFlags().Lookup("in-redis"))
 	runCmd.PersistentFlags().BoolP("in-redis-nopipe", "", false, "do not use Redis pipelining")
 	viper.BindPFlag("input.redis.nopipe", runCmd.PersistentFlags().Lookup("in-redis-nopipe"))
+	runCmd.PersistentFlags().UintP("in-buffer-length", "", 500000, "input buffer length (counted in EVE objects)")
+	viper.BindPFlag("input.buffer-length", runCmd.PersistentFlags().Lookup("in-buffer-length"))
+	runCmd.PersistentFlags().BoolP("in-buffer-drop", "", true, "drop incoming events on FEVER side instead of blocking the input socket")
+	viper.BindPFlag("input.buffer-drop", runCmd.PersistentFlags().Lookup("in-buffer-drop"))
 
 	// Output options
 	runCmd.PersistentFlags().StringP("out-socket", "o", "/tmp/suri-forward.sock", "path to output socket (to forwarder), empty string disables forwarding")

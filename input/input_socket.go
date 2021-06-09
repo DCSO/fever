@@ -14,14 +14,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// SocketInputPerfStats contains performance stats written to InfluxDB
+// for monitoring.
+type SocketInputPerfStats struct {
+	SocketQueueLength  uint64 `influx:"input_queue_length"`
+	SocketQueueDropped uint64 `influx:"input_queue_dropped"`
+}
+
 // SocketInput is an Input reading JSON EVE input from a Unix socket.
 type SocketInput struct {
-	EventChan     chan types.Entry
-	Verbose       bool
-	Running       bool
-	InputListener net.Listener
-	StopChan      chan bool
-	StoppedChan   chan bool
+	EventChan         chan types.Entry
+	Verbose           bool
+	Running           bool
+	InputListener     net.Listener
+	StopChan          chan bool
+	StoppedChan       chan bool
+	DropIfChannelFull bool
+	PerfStats         SocketInputPerfStats
+	StatsEncoder      *util.PerformanceStatsEncoder
 }
 
 // GetName returns a printable name for the input
@@ -68,7 +78,16 @@ func (si *SocketInput) handleServerConnection() {
 							log.Warn(err, string(json[:]))
 							continue
 						}
-						si.EventChan <- e
+						if si.DropIfChannelFull {
+							select {
+							case si.EventChan <- e:
+								// pass
+							default:
+								si.PerfStats.SocketQueueDropped++
+							}
+						} else {
+							si.EventChan <- e
+						}
 					}
 				}
 				errRead := scanner.Err()
@@ -94,16 +113,40 @@ func (si *SocketInput) handleServerConnection() {
 	}
 }
 
+func (si *SocketInput) sendPerfStats() {
+	start := time.Now()
+	for {
+		select {
+		case <-si.StopChan:
+			return
+		default:
+			// We briefly wake up once a second to check whether we are asked
+			// to stop or whether it's time to submit stats. This is neglegible
+			// in overhead but massively improves shutdown time, as a simple
+			// time.Sleep() is non-interruptible by the stop channel.
+			if time.Since(start) > perfStatsSendInterval {
+				if si.StatsEncoder != nil {
+					si.PerfStats.SocketQueueLength = uint64(len(si.EventChan))
+					si.StatsEncoder.Submit(si.PerfStats)
+				}
+				start = time.Now()
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}
+}
+
 // MakeSocketInput returns a new SocketInput reading from the Unix socket
 // inputSocket and writing parsed events to outChan. If no such socket could be
 // created for listening, the error returned is set accordingly.
 func MakeSocketInput(inputSocket string,
-	outChan chan types.Entry) (*SocketInput, error) {
+	outChan chan types.Entry, bufDrop bool) (*SocketInput, error) {
 	var err error
 	si := &SocketInput{
-		EventChan: outChan,
-		Verbose:   false,
-		StopChan:  make(chan bool),
+		EventChan:         outChan,
+		Verbose:           false,
+		StopChan:          make(chan bool),
+		DropIfChannelFull: bufDrop,
 	}
 	si.InputListener, err = net.Listen("unix", inputSocket)
 	if err != nil {
@@ -112,12 +155,18 @@ func MakeSocketInput(inputSocket string,
 	return si, err
 }
 
+// SubmitStats registers a PerformanceStatsEncoder for runtime stats submission.
+func (si *SocketInput) SubmitStats(sc *util.PerformanceStatsEncoder) {
+	si.StatsEncoder = sc
+}
+
 // Run starts the SocketInput
 func (si *SocketInput) Run() {
 	if !si.Running {
 		si.Running = true
 		si.StopChan = make(chan bool)
 		go si.handleServerConnection()
+		go si.sendPerfStats()
 	}
 }
 

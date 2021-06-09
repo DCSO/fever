@@ -34,12 +34,24 @@ database:
 
 # Configuration for input (from Suricata side). Only one of 'socket' 
 # or 'redis' is supported at the same time, comment/uncomment to choose.
-# The 'nopipe' option disables Redis pipelining. For Redis, we assume the
-# 'suricata' list as a source.
 input:
+  # Path to the socket that Suricata writes to.
   socket: /tmp/suri.sock
+  # Buffer length for EVE items parsed from input socket. Useful to help FEVER
+  # keep up with input from Suricata in case the processing pipeline is
+  # temporarily slow.
+  # Will track current buffer size in the `input_queue_length` metric.
+  buffer: 500000
+  # Rather drop items from a full buffer than causing writes to the input
+  # socket to block.
+  # This avoids congestion effects in Suricata (up to packet drops) if FEVER
+  # or its forwarding receiver remains slow for a longer period of time.
+  # Will count the number of dropped items in the `input_queue_dropped` metric.
+  buffer-drop: true
   #redis:
+  #  # Redis server hostname. We assume the 'suricata' list as a source.
   #  server: localhost
+  #  # Disables Redis pipelining.
   #  nopipe: true
 
 # Definition what event types to forward. Set 'all' to true to forward 

@@ -120,6 +120,10 @@ func (si *SocketInput) sendPerfStats() {
 		case <-si.StopChan:
 			return
 		default:
+			// We briefly wake up once a second to check whether we are asked
+			// to stop or whether it's time to submit stats. This is neglegible
+			// in overhead but massively improves shutdown time, as a simple
+			// time.Sleep() is non-interruptible by the stop channel.
 			if time.Since(start) > perfStatsSendInterval {
 				if si.StatsEncoder != nil {
 					si.PerfStats.SocketQueueLength = uint64(len(si.EventChan))

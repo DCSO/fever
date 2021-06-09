@@ -2,8 +2,10 @@
 
 All notable changes to FEVER will be documented in this file.
 
-## [1.0.20] - TBD
+## [1.1.0] - 2021-06-09
 
+### Added
+- Support for input buffering (#82)
 
 ## [1.0.19] - 2021-05-04
 

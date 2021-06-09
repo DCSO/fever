@@ -540,18 +540,24 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	inputRedis := viper.GetString("input.redis.server")
 	noUseRedisPipeline := viper.GetBool("input.redis.nopipe")
 	if len(inputRedis) > 0 {
-		sinput, err = input.MakeRedisInput(inputRedis, inputChan, int(chunkSize))
-		sinput.(*input.RedisInput).UsePipelining = !noUseRedisPipeline
-		sinput.(*input.RedisInput).SubmitStats(pse)
+		in, err := input.MakeRedisInput(inputRedis, inputChan, int(chunkSize))
+		if err != nil {
+			log.Fatal(err)
+		}
+		in.UsePipelining = !noUseRedisPipeline
+		in.SubmitStats(pse)
+		sinput = in
 	} else {
 		inputSocket := viper.GetString("input.socket")
 		bufDrop := viper.GetBool("input.buffer-drop")
-		sinput, err = input.MakeSocketInput(inputSocket, inputChan, bufDrop)
-		sinput.(*input.SocketInput).SubmitStats(pse)
+		in, err := input.MakeSocketInput(inputSocket, inputChan, bufDrop)
+		if err != nil {
+			log.Fatal(err)
+		}
+		in.SubmitStats(pse)
+		sinput = in
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	log.WithFields(log.Fields{
 		"input": sinput.GetName(),
 	}).Info("selected input driver")

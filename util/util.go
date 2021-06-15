@@ -274,7 +274,7 @@ func GetSensorID() (string, error) {
 // RndStringFromRunes returns a string of length n
 // with randomly picked runes from fromRunes slice
 func RndStringFromRunes(fromRunes []rune, n int) string {
-    result := make([]rune, n)
+	result := make([]rune, n)
 	numRunes := len(fromRunes)
 	for i := range result {
 		result[i] = fromRunes[rand.Intn(numRunes)]
@@ -284,7 +284,7 @@ func RndStringFromRunes(fromRunes []rune, n int) string {
 
 // RndStringFromBytes
 func RndStringFromBytes(fromBytes []byte, n int) string {
-    result := make([]byte, n)
+	result := make([]byte, n)
 	numBytes := len(fromBytes)
 	for i := range result {
 		result[i] = fromBytes[rand.Intn(numBytes)]
@@ -294,24 +294,23 @@ func RndStringFromBytes(fromBytes []byte, n int) string {
 
 // RndStringFromAlpha
 func RndStringFromAlpha(n int) string {
-    return RndStringFromBytes([]byte("abcdefghijklmnopqrstuvwxyz"), n)
+	return RndStringFromBytes([]byte("abcdefghijklmnopqrstuvwxyz"), n)
 }
 
 // RndHexString returns a Hex string of length n
 func RndHexString(n int) string {
-    return RndStringFromBytes([]byte("0123456789abcdef"), n)
+	return RndStringFromBytes([]byte("0123456789abcdef"), n)
 }
 
 // RndTLSFingerprint returns a random string in
 // the form of a TLS fingerprint
 func RndTLSFingerprint() string {
-    nums := make([]string, 20)
-	for i := 0 ; i < 20 ; i++ {
+	nums := make([]string, 20)
+	for i := 0; i < 20; i++ {
 		nums[i] = RndHexString(2)
 	}
 	return strings.Join(nums, ":")
 }
-
 
 // MakeTLSConfig returns a TLS configuration suitable for an endpoint with private
 // key stored in keyFile and corresponding certificate stored in certFile. rcas

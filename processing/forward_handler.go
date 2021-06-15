@@ -5,13 +5,13 @@ package processing
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
-	"github.com/buger/jsonparser"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -29,7 +29,7 @@ type ForwardHandler struct {
 	Logger              *log.Entry
 	DoRDNS              bool
 	RDNSHandler         *RDNSHandler
-	AddedFields         map[string]string
+	AddedFields         string
 	ContextCollector    *ContextCollector
 	StenosisIface       string
 	StenosisConnector   *StenosisConnector
@@ -210,19 +210,13 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 				return err
 			}
 		}
-		for k, v := range fh.AddedFields {
-			val, err := util.EscapeJSON(v)
-			if err != nil {
-				fh.Logger.Warningf("cannot escape value: %s", v)
-				continue
-			}
-			newJSON, err := jsonparser.Set([]byte(e.JSONLine), val, k)
-			if err != nil {
-				fh.Logger.Warningf("cannot set %s: %s", k, v)
-				continue
-			} else {
-				e.JSONLine = string(newJSON)
-			}
+		// if length is 1 then there are no added fields, only a '}'
+		if len(fh.AddedFields) > 1 {
+			j := e.JSONLine
+			l := len(j)
+			j = j[:l-1]
+			j += fh.AddedFields
+			e.JSONLine = j
 		}
 		// if we use Stenosis, the Stenosis connector will take ownership of
 		// alerts
@@ -263,8 +257,26 @@ func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 
 // AddFields enables the addition of a custom set of top-level fields to the
 // forwarded JSON.
-func (fh *ForwardHandler) AddFields(fields map[string]string) {
-	fh.AddedFields = fields
+func (fh *ForwardHandler) AddFields(fields map[string]string) error {
+	j := ""
+	// We preprocess the JSON to be able to only use fast string operations
+	// later.
+	for k, v := range fields {
+		kval, err := util.EscapeJSON(k)
+		if err != nil {
+			fh.Logger.Warningf("cannot escape value: %s", v)
+			return err
+		}
+		vval, err := util.EscapeJSON(v)
+		if err != nil {
+			fh.Logger.Warningf("cannot escape value: %s", v)
+			return err
+		}
+		j += fmt.Sprintf(",%s:%s", kval, vval)
+	}
+	j += "}"
+	fh.AddedFields = j
+	return nil
 }
 
 // EnableStenosis ...

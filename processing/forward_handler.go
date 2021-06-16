@@ -210,7 +210,10 @@ func (fh *ForwardHandler) Consume(e *types.Entry) error {
 				return err
 			}
 		}
-		// if length is 1 then there are no added fields, only a '}'
+		// Replace the final brace `}` in the JSON with the prepared string to
+		// add the 'added fields' defined in the config. I the length of this
+		// string is 1 then there are no added fields, only a final brace '}'.
+		// In this case we don't even need to modify the JSON string at all.
 		if len(fh.AddedFields) > 1 {
 			j := e.JSONLine
 			l := len(j)
@@ -260,8 +263,11 @@ func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 func (fh *ForwardHandler) AddFields(fields map[string]string) error {
 	j := ""
 	// We preprocess the JSON to be able to only use fast string operations
-	// later.
+	// later. This code progressively builds a JSON snippet by adding JSON
+	// key-value pairs for each added field, e.g. `, "foo":"bar"`.
 	for k, v := range fields {
+		// Escape the fields to make sure we do not mess up the JSON when
+		// encountering weird symbols in field names or values.
 		kval, err := util.EscapeJSON(k)
 		if err != nil {
 			fh.Logger.Warningf("cannot escape value: %s", v)
@@ -274,6 +280,10 @@ func (fh *ForwardHandler) AddFields(fields map[string]string) error {
 		}
 		j += fmt.Sprintf(",%s:%s", kval, vval)
 	}
+	// We finish the list of key-value pairs with a final brace:
+	// `, "foo":"bar"}`. This string can now just replace the final brace in a
+	// given JSON string. If there were no added fields, we just leave the
+	// output at the final brace.
 	j += "}"
 	fh.AddedFields = j
 	return nil

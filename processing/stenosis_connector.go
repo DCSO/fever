@@ -48,7 +48,7 @@ type StenosisConnector struct {
 // MakeStenosisConnector returns a new StenosisConnector for the
 // given parameters.
 func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
-	notifyChan chan types.Entry, forwardChan chan []byte, alertCacheExpiry time.Duration,
+	notifyChan chan types.Entry, forwardChan chan types.Entry, alertCacheExpiry time.Duration,
 	tlsConfig *tls.Config) (*StenosisConnector, error) {
 	sConn := &StenosisConnector{
 		Endpoint:       endpoint,
@@ -97,7 +97,7 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 					log.Error("could not obtain token but no error was raised")
 				}
 				for _, a := range myAlerts {
-					forwardChan <- []byte(a.JSONLine)
+					forwardChan <- a
 				}
 			} else if forwardChan != nil {
 				for _, a := range myAlerts {
@@ -118,7 +118,7 @@ func MakeStenosisConnector(endpoint string, timeout, timeBracket time.Duration,
 					} else {
 						log.Warning("empty token encountered")
 					}
-					forwardChan <- []byte(a.JSONLine)
+					forwardChan <- a
 				}
 			}
 			sConn.Cache.Delete(flow.FlowID)

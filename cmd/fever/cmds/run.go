@@ -140,12 +140,39 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		}()
 	}
 
-	// Configure forwarding
-	outputSocket := viper.GetString("output.socket")
-	forward = (outputSocket != "")
-	eventTypes := viper.GetStringSlice("forward.types")
-	allTypes := viper.GetBool("forward.all")
-	util.PrepareEventFilter(eventTypes, allTypes)
+	// Get config from viper
+	var multiForwardConf processing.MultiForwardConfiguration
+	err = viper.Unmarshal(&multiForwardConf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Keep supporting legacy config ("output" and "forward" sections)
+	if len(multiForwardConf.Outputs) == 0 {
+		log.Info("no multi-forwarder configuration, found, using legacy config")
+		outSocketPath := viper.GetString("output.socket")
+		if len(outSocketPath) > 0 {
+			multiForwardConf.Outputs = make(map[string]processing.MultiForwardOutput)
+			multiForwardConf.Outputs["default"] =
+				processing.MultiForwardOutput{
+					Socket: viper.GetString("output.socket"),
+					All:    viper.GetBool("forward.all"),
+					Types:  viper.GetStringSlice("forward.types"),
+				}
+		}
+	} else {
+		log.Info("found multi-forwarder configuration, ignoring legacy config")
+	}
+
+	if len(multiForwardConf.Outputs) > 0 {
+		forward = true
+	}
+
+	if pse != nil {
+		multiForwardConf.SubmitStats(pse)
+	}
+	multiFwdChan := make(chan types.Entry)
+	reconnectTimes := viper.GetInt("reconnect-retries")
+	multiForwardConf.Run(multiFwdChan, reconnectTimes)
 
 	// Optional profiling
 	profileFile := viper.GetString("profile")
@@ -185,14 +212,10 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	s.Run(eventChan)
 
 	var forwardHandler processing.Handler
-	reconnectTimes := viper.GetInt("reconnect-retries")
 	// start forwarding
 	if forward {
-		forwardHandler = processing.MakeForwardHandler(int(reconnectTimes), outputSocket)
+		forwardHandler = processing.MakeForwardHandler(multiFwdChan)
 		fh := forwardHandler.(*processing.ForwardHandler)
-		if pse != nil {
-			fh.SubmitStats(pse)
-		}
 		rdns := viper.GetBool("active.rdns")
 		if rdns {
 			expiryPeriod := viper.GetDuration("active.rdns-cache-expiry")
@@ -202,7 +225,6 @@ func mainfunc(cmd *cobra.Command, args []string) {
 				fh.RDNSHandler.EnableOnlyPrivateIPRanges()
 			}
 		}
-		fh.Run()
 
 		stenosis := viper.GetBool("stenosis.enable")
 		if stenosis {
@@ -236,12 +258,6 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 		addFields := viper.GetStringMapString("add-fields")
 		fh.AddFields(addFields)
-
-		defer func() {
-			c := make(chan bool)
-			fh.Stop(c)
-			<-c
-		}()
 	} else {
 		// in this case we use a void handler that does nothing
 		forwardHandler = processing.MakeVoidHandler()

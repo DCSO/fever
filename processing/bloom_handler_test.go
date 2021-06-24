@@ -278,9 +278,6 @@ func (h *CollectorHandler) GetEntries() map[string]bool {
 }
 
 func TestBloomHandler(t *testing.T) {
-	// make sure that alerts are forwarded
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// initalize Bloom filter and fill with 'interesting' values
 	bf := bloom.Initialize(100000, 0.0000001)
 	fillBloom(&bf)
@@ -394,9 +391,9 @@ func TestBloomHandler(t *testing.T) {
 				e = makeBloomTLSEvent(s, ":::")
 				bh.Consume(&e)
 			case 3:
-				f := fmt.Sprintf("%s", util.RndStringFromAlpha(6))
+				f := util.RndStringFromAlpha(6)
 				for bf.Check([]byte(f)) {
-					f = fmt.Sprintf("%s", util.RndStringFromAlpha(6))
+					f = util.RndStringFromAlpha(6)
 				}
 				e = makeBloomTLSEvent("foo.com", f)
 				bh.Consume(&e)
@@ -695,8 +692,6 @@ func TestBloomHandlerURL(t *testing.T) {
 		close(consumeWaitChan)
 	}()
 
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// initalize Bloom filter and fill with 'interesting' values
 	bf := bloom.Initialize(100000, 0.0000001)
 	bf.Add([]byte("/oddlyspecific"))
@@ -950,8 +945,6 @@ func TestBloomHandlerBlacklistedSkip(t *testing.T) {
 		close(consumeWaitChan)
 	}()
 
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// handler to receive forwarded events
 	fwhandler := &CollectorHandler{
 		Entries: make(map[string]bool),
@@ -981,9 +974,6 @@ func TestBloomHandlerBlacklistedSkip(t *testing.T) {
 }
 
 func TestBloomHandlerInvalidDNS(t *testing.T) {
-	// make sure that alerts are forwarded
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// initalize Bloom filter and fill with 'interesting' values
 	bf := bloom.Initialize(100000, 0.0000001)
 

@@ -19,9 +19,21 @@ import (
 	"time"
 
 	"github.com/DCSO/fever/types"
-	"github.com/DCSO/fever/util"
 	log "github.com/sirupsen/logrus"
 )
+
+func makeMultiForwarder(fn string, all bool, types []string) MultiForwardConfiguration {
+	mf := MultiForwardConfiguration{
+		Outputs: map[string]MultiForwardOutput{
+			"default": MultiForwardOutput{
+				Socket: fn,
+				All:    all,
+				Types:  types,
+			},
+		},
+	}
+	return mf
+}
 
 func makeEvent(eType string, tag string) types.Entry {
 	e := types.Entry{
@@ -95,8 +107,6 @@ func consumeSocket(inputListener net.Listener, stopChan chan bool,
 }
 
 func TestForwardHandler(t *testing.T) {
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	dir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -123,15 +133,17 @@ func TestForwardHandler(t *testing.T) {
 	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
 
 	// start forwarding handler
-	fh := MakeForwardHandler(5, tmpfn)
-	fh.Run()
+	c := make(chan types.Entry, 100)
+	fh := MakeForwardHandler(c)
+	mf := makeMultiForwarder(tmpfn, false, []string{"alert"})
+	mf.Run(c, 5)
 
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {
 		t.Fatal("Forwarding handler should only claim one type")
 	}
-	if fhTypes[0] != "alert" {
-		t.Fatal("Forwarding handler should claim 'alert' type")
+	if fhTypes[0] != "*" {
+		t.Fatal("Forwarding handler should claim '*' type")
 	}
 	if fh.GetName() != "Forwarding handler" {
 		t.Fatal("Forwarding handler has wrong name")
@@ -146,11 +158,6 @@ func TestForwardHandler(t *testing.T) {
 
 	// wait for socket consumer to receive all
 	wg.Wait()
-
-	// stop forwarding handler
-	scChan := make(chan bool)
-	fh.Stop(scChan)
-	<-scChan
 
 	if len(coll) != 2 {
 		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
@@ -174,8 +181,6 @@ func TestForwardHandler(t *testing.T) {
 }
 
 func TestForwardHandlerWithAddedFields(t *testing.T) {
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	dir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -202,18 +207,20 @@ func TestForwardHandlerWithAddedFields(t *testing.T) {
 	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
 
 	// start forwarding handler
-	fh := MakeForwardHandler(5, tmpfn)
+	c := make(chan types.Entry)
+	mf := makeMultiForwarder(tmpfn, false, []string{"alert"})
+	fh := MakeForwardHandler(c)
+	mf.Run(c, 5)
 	fh.AddFields(map[string]string{
 		"foo": "bar",
 	})
-	fh.Run()
 
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {
 		t.Fatal("Forwarding handler should only claim one type")
 	}
-	if fhTypes[0] != "alert" {
-		t.Fatal("Forwarding handler should claim 'alert' type")
+	if fhTypes[0] != "*" {
+		t.Fatal("Forwarding handler should claim '*' type")
 	}
 	if fh.GetName() != "Forwarding handler" {
 		t.Fatal("Forwarding handler has wrong name")
@@ -226,11 +233,6 @@ func TestForwardHandlerWithAddedFields(t *testing.T) {
 
 	// wait for socket consumer to receive all
 	wg.Wait()
-
-	// stop forwarding handler
-	scChan := make(chan bool)
-	fh.Stop(scChan)
-	<-scChan
 
 	if len(coll) != 2 {
 		t.Fatalf("unexpected number of alerts: %d != 2", len(coll))
@@ -254,8 +256,6 @@ func TestForwardHandlerWithAddedFields(t *testing.T) {
 }
 
 func TestForwardAllHandler(t *testing.T) {
-	util.PrepareEventFilter([]string{}, true)
-
 	dir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -282,8 +282,10 @@ func TestForwardAllHandler(t *testing.T) {
 	go consumeSocket(inputListener, clCh, cldCh, t, &coll, &wg)
 
 	// start forwarding handler
-	fh := MakeForwardHandler(5, tmpfn)
-	fh.Run()
+	c := make(chan types.Entry, 100)
+	mf := makeMultiForwarder(tmpfn, true, []string{})
+	fh := MakeForwardHandler(c)
+	mf.Run(c, 5)
 
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {
@@ -304,11 +306,6 @@ func TestForwardAllHandler(t *testing.T) {
 	fh.Consume(&e)
 
 	wg.Wait()
-
-	// stop forwarding handler
-	scChan := make(chan bool)
-	fh.Stop(scChan)
-	<-scChan
 
 	// stop socket consumer
 	inputListener.Close()

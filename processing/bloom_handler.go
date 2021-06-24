@@ -31,7 +31,6 @@ type BloomHandler struct {
 	BloomFileIsCompressed bool
 	DatabaseEventChan     chan types.Entry
 	ForwardHandler        Handler
-	DoForwardAlert        bool
 	AlertPrefix           string
 	Alertifier            *util.Alertifier
 	BlacklistIOCs         map[string]struct{}
@@ -75,7 +74,6 @@ func MakeBloomHandler(iocBloom *bloom.BloomFilter,
 		IocBloom:          iocBloom,
 		DatabaseEventChan: databaseChan,
 		ForwardHandler:    forwardHandler,
-		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
 		AlertPrefix:       alertPrefix,
 		Alertifier:        util.MakeAlertifier(alertPrefix),
 		BlacklistIOCs:     make(map[string]struct{}),

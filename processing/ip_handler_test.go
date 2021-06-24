@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/DCSO/fever/types"
-	"github.com/DCSO/fever/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -86,9 +85,6 @@ func (h *IPCollectorHandler) Consume(e *types.Entry) error {
 }
 
 func TestIPHandler(t *testing.T) {
-	// make sure that alerts are forwarded
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// channel to receive events to be saved to database
 	dbChan := make(chan types.Entry)
 
@@ -152,9 +148,6 @@ func TestIPHandler(t *testing.T) {
 }
 
 func TestIPHandlerFromFile(t *testing.T) {
-	// make sure that alerts are forwarded
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	// channel to receive events to be saved to database
 	dbChan := make(chan types.Entry)
 

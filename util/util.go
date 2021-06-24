@@ -282,7 +282,8 @@ func RndStringFromRunes(fromRunes []rune, n int) string {
 	return string(result)
 }
 
-// RndStringFromBytes
+// RndStringFromBytes returns a string of length n
+// with randomly picked bytes from fromBytes slice
 func RndStringFromBytes(fromBytes []byte, n int) string {
 	result := make([]byte, n)
 	numBytes := len(fromBytes)
@@ -292,7 +293,8 @@ func RndStringFromBytes(fromBytes []byte, n int) string {
 	return string(result)
 }
 
-// RndStringFromAlpha
+// RndStringFromAlpha returns a string of length n
+// with randomly picked alphabetic characters
 func RndStringFromAlpha(n int) string {
 	return RndStringFromBytes([]byte("abcdefghijklmnopqrstuvwxyz"), n)
 }

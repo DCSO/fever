@@ -35,8 +35,8 @@ func makeFlowExtractorEvent(ipv6 bool) types.Entry {
 		srcIP = fmt.Sprintf("10.0.0.%d", rand.Intn(50))
 		destIP = fmt.Sprintf("10.0.0.%d", rand.Intn(50))
 	} else {
-		srcIP = fmt.Sprintf("2001:0db8:85a3:0000:0000:8a2e:0370:7334")
-		destIP = fmt.Sprintf("2001:0db8:85a3:0000:0000:8a2e:0370:7334")
+		srcIP = "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+		destIP = "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
 	}
 
 	e := types.Entry{

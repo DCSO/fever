@@ -26,9 +26,10 @@ func makeMultiForwarder(fn string, all bool, types []string) MultiForwardConfigu
 	mf := MultiForwardConfiguration{
 		Outputs: map[string]MultiForwardOutput{
 			"default": MultiForwardOutput{
-				Socket: fn,
-				All:    all,
-				Types:  types,
+				Socket:       fn,
+				All:          all,
+				BufferLength: 100,
+				Types:        types,
 			},
 		},
 	}

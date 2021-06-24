@@ -25,9 +25,10 @@ type MultiForwardPerfStats struct {
 // whether to filter the output by event type and if so, what event types to let
 // pass.
 type MultiForwardOutput struct {
-	Socket string
-	All    bool
-	Types  []string
+	Socket       string   `mapstructure:"socket"`
+	All          bool     `mapstructure:"all"`
+	BufferLength uint64   `mapstructure:"buffer-length"`
+	Types        []string `mapstructure:"types"`
 }
 
 // MultiForwardConfiguration contains a setup for the multi-forwarder as read
@@ -214,7 +215,7 @@ func (m *MultiForwardConfiguration) Run(inChan <-chan types.Entry, reconnectTime
 			StatsEncoder:        m.StatsEncoder,
 		}
 		mfs.StopChan = make(chan bool)
-		mfs.ForwardInChan = make(chan types.Entry, 10000)
+		mfs.ForwardInChan = make(chan types.Entry, output.BufferLength)
 		if output.All {
 			fwdAll = append(fwdAll, mfs)
 		} else {

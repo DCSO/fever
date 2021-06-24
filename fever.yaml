@@ -56,8 +56,9 @@ input:
 
 # Configure forwarding of events processed by FEVER
 multi-forward:
-  #socketall:
+  # socketall:
   #  socket: /tmp/out-all.sock
+  #  buffer-length: 100000
   #  all: true
   #  types: []
   socketalerts:
@@ -66,6 +67,7 @@ multi-forward:
     # By default, we only forward alerts and stats events.
     socket: /tmp/suri-forward.sock
     all: false
+    buffer-length: 1000
     types:
       - alert
       - stats

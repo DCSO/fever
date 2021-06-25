@@ -5,7 +5,6 @@ package processing
 
 import (
 	"github.com/DCSO/fever/types"
-	"github.com/DCSO/fever/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -39,8 +38,5 @@ func (fh *VoidHandler) GetName() string {
 // GetEventTypes returns a slice of event type strings that this handler
 // should be applied to
 func (fh *VoidHandler) GetEventTypes() []string {
-	if util.ForwardAllEvents {
-		return []string{"*"}
-	}
-	return util.GetAllowedTypes()
+	return []string{"*"}
 }

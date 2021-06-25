@@ -49,7 +49,6 @@ type IPHandler struct {
 	IPListFilename    string
 	DatabaseEventChan chan types.Entry
 	ForwardHandler    Handler
-	DoForwardAlert    bool
 	AlertPrefix       string
 	Alertifier        *util.Alertifier
 }
@@ -67,7 +66,6 @@ func MakeIPHandler(ranger cidranger.Ranger,
 		Ranger:            ranger,
 		DatabaseEventChan: databaseChan,
 		ForwardHandler:    forwardHandler,
-		DoForwardAlert:    (util.ForwardAllEvents || util.AllowType("alert")),
 		AlertPrefix:       alertPrefix,
 		Alertifier:        util.MakeAlertifier(alertPrefix),
 	}

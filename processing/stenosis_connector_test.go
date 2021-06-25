@@ -18,7 +18,6 @@ import (
 
 	"github.com/DCSO/fever/stenosis/task"
 	"github.com/DCSO/fever/types"
-	"github.com/DCSO/fever/util"
 )
 
 // Currently unused. Keeping this here for future randomized tests.
@@ -58,8 +57,6 @@ import (
 // }
 
 func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string) []string {
-	util.PrepareEventFilter([]string{"alert"}, false)
-
 	dir, err := ioutil.TempDir("", "test")
 	if err != nil {
 		t.Fatal(err)
@@ -107,9 +104,10 @@ func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string
 	// notifier := MakeFlowNotifier(notifyChan)
 
 	// start forwarding handler
-	fh := MakeForwardHandler(5, tmpfn)
-	// this needs to be started first so the channel is created
-	fh.Run()
+	c := make(chan types.Entry, 100)
+	mf := makeMultiForwarder(tmpfn, true, []string{"alert"})
+	fh := MakeForwardHandler(c)
+	mf.Run(c, 5)
 
 	// fh.EnableStenosis(apiServer.URL, 2*time.Second, notifyChan, nil)
 	fh.EnableStenosis(grpcServer.Addr(), 2*time.Second, 10*time.Second,
@@ -198,11 +196,6 @@ func _TestStenosisQueryRegularSuccessForwarded(t *testing.T, ifaceSetting string
 
 	// wait for socket consumer to receive all
 	wg.Wait()
-
-	// stop forwarding handler
-	scChan := make(chan bool)
-	fh.Stop(scChan)
-	<-scChan
 
 	// we can now close this
 	grpcServer.Close()

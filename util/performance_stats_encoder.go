@@ -47,12 +47,13 @@ func MakePerformanceStatsEncoder(statsSubmitter StatsSubmitter,
 	return a
 }
 
-// Submit encodes the data annotated with 'influx' tags in the passed struct and
-// sends it to the configured submitter.
-func (a *PerformanceStatsEncoder) Submit(val interface{}) {
+// SubmitWithTags encodes the data annotated with 'influx' tags in the passed
+// struct and sends it to the configured submitter. This version also allows to
+// add a set of user-defined tags as a key-value map.
+func (a *PerformanceStatsEncoder) SubmitWithTags(val interface{}, tags map[string]string) {
 	a.Lock()
 	a.Buffer.Reset()
-	err := a.Encoder.EncodeWithoutTypes(ToolName, val, a.Tags)
+	err := a.Encoder.EncodeWithoutTypes(ToolName, val, tags)
 	if err != nil {
 		if a.Logger != nil {
 			a.Logger.WithFields(log.Fields{}).Warn(err)
@@ -70,4 +71,10 @@ func (a *PerformanceStatsEncoder) Submit(val interface{}) {
 		"retention_policy": "default",
 	})
 	a.Unlock()
+}
+
+// Submit encodes the data annotated with 'influx' tags in the passed struct and
+// sends it to the configured submitter.
+func (a *PerformanceStatsEncoder) Submit(val interface{}) {
+	a.SubmitWithTags(val, a.Tags)
 }

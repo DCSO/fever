@@ -2,6 +2,15 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.2.0] - 2021-06-25
+
+### Added
+- Support for multiple output sockets with ecent type filtering and
+  buffers (#84)
+
+### Changed
+- Speed up addition of fields to forwarded EVE-JSON (#83)
+
 ## [1.1.0] - 2021-06-09
 
 ### Added

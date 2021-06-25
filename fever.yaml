@@ -54,17 +54,17 @@ input:
   #  # Disables Redis pipelining.
   #  nopipe: true
 
-# Configure forwarding of events processed by FEVER
+# Configure forwarding of events processed by FEVER, i.e. define what event
+# types to forward.
 multi-forward:
+  # Set 'all' to true to forward everything received from Suricata, otherwise
+  # use the 'types' list to choose. Example:
   # socketall:
   #  socket: /tmp/out-all.sock
   #  buffer-length: 100000
   #  all: true
   #  types: []
   socketalerts:
-    # Definition what event types to forward. Set 'all' to true to forward
-    # everything received from Suricata, otherwise use the 'types' list to choose.
-    # By default, we only forward alerts and stats events.
     socket: /tmp/suri-forward.sock
     all: false
     buffer-length: 1000

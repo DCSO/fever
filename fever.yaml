@@ -149,11 +149,23 @@ flowextract:
 active:
   # Enable reverse DNS lookups for src/dst IPs.
   rdns: false
+  # Only do reverse lookups for RFC 1918 IPs.
   rdns-private-only: true
+  # Duration to cache lookup redults for to avoid excessive DNS load.
   rdns-cache-expiry: 120s
 
+# Configuration for FEVER's log file handling.
 logging:
-  # Insert file name here to redirect logs to separate file.
+  # Insert file name here to redirect logs to separate file. If left blank, logs
+  # will be printed to the stdout/stderr of the FEVER process.
   file: 
   # Set to true to enable JSON output.
   json: false
+
+# Configuration for FEVER's remote management interface.
+mgmt:
+  # Use local socket for gRPC communication.
+  socket: /tmp/fever-mgmt.sock
+  # Use network server for gRPC commmunication.
+  #network: tcp
+  #host: localhost:9999

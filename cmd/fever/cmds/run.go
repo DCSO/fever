@@ -1,9 +1,10 @@
 package cmd
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, 2019, 2020, DCSO GmbH
+// Copyright (c) 2017, 2021, DCSO GmbH
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/DCSO/fever/db"
 	"github.com/DCSO/fever/input"
+	"github.com/DCSO/fever/mgmt"
 	"github.com/DCSO/fever/processing"
 	"github.com/DCSO/fever/types"
 	"github.com/DCSO/fever/util"
@@ -69,6 +71,7 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 	dummyMode := viper.GetBool("dummy")
 
+	// configure metrics
 	enableMetrics := viper.GetBool("metrics.enable")
 	if err != nil {
 		log.Fatal(err)
@@ -515,6 +518,25 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		defer hi.Stop()
 	}
 
+	// create mgmt server
+	state := &mgmt.State{
+		BloomHandler: bloomHandler,
+	}
+	mgmtCfg := mgmt.EndpointConfigFromViper()
+	msrv, err := mgmt.NewMgmtServer(context.TODO(), mgmtCfg, state)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go func() error {
+		if err := msrv.ListenAndServe(); err != nil {
+			log.WithFields(log.Fields{
+				"domain": "mgmt",
+			}).WithError(err).Error("starting gRPC server failed")
+			os.Exit(1)
+		}
+		return nil
+	}()
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
 	go func() {
@@ -535,6 +557,7 @@ func mainfunc(cmd *cobra.Command, args []string) {
 				if myerr == nil {
 					os.Remove(inputSocket)
 				}
+				msrv.Stop()
 				os.Exit(1)
 			} else if sig == syscall.SIGUSR1 {
 				if bloomHandler != nil {

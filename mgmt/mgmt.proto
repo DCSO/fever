@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package mgmt;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/DCSO/fever/mgmt";
+
+message MgmtBloomInfoResponse {
+  bool has_bloom = 1;
+  uint64 capacity = 2;
+  uint64 elements = 3;
+  uint64 bits = 4;
+  uint64 hashfuncs = 5;
+  double fpprob = 6;
+}
+
+message MgmtAliveRequest {
+  string alive = 1;
+}
+
+message MgmtAliveResponse {
+  string echo = 1;
+}
+
+message MgmtBloomAddRequest {
+  string ioc = 1;
+}
+
+message MgmtBloomAddResponse {
+  uint64 added = 1;
+}
+
+service MgmtService {
+  rpc Alive(MgmtAliveRequest) returns (MgmtAliveResponse);
+  rpc BloomInfo(google.protobuf.Empty) returns (MgmtBloomInfoResponse);
+  rpc BloomAdd(stream MgmtBloomAddRequest) returns (MgmtBloomAddResponse);
+  rpc BloomSave(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc BloomReload(google.protobuf.Empty) returns (google.protobuf.Empty);
+}

@@ -65,8 +65,8 @@ Flags:
       --heartbeat-enable                         Forward HTTP heartbeat event
       --heartbeat-times strings                  Times of day to send heartbeat (list of 24h HH:MM strings)
   -h, --help                                     help for run
-      --in-buffer-length uint                    input buffer length (counted in EVE objects) (default 500000)
       --in-buffer-drop                           drop incoming events on FEVER side instead of blocking the input socket (default true)
+      --in-buffer-length uint                    input buffer length (counted in EVE objects) (default 500000)
   -r, --in-redis string                          Redis input server (assumes "suricata" list key, no pwd)
       --in-redis-nopipe                          do not use Redis pipelining
   -i, --in-socket string                         filename of input socket (accepts EVE JSON) (default "/tmp/suri.sock")
@@ -97,7 +97,11 @@ Flags:
   -v, --verbose                                  enable verbose logging (debug log level)
 
 Global Flags:
-      --config string   config file (default is $HOME/.fever.yaml)
+      --config string         config file (default is $HOME/.fever.yaml)
+      --mgmt-host string      hostname:port definition for management server
+      --mgmt-network string   network (tcp/udp) definition for management server (default "tcp")
+      --mgmt-socket string    Socket path for management server (default "/tmp/fever-mgmt.sock")
+
 ```
 
 It is also possible to use a config file in YAML format ([Example](fever.yaml)). Configuration is cascading: first settings are loaded from the config file and can then be overridden by command line parameters.

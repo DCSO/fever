@@ -1,7 +1,7 @@
 package cmd
 
 // DCSO FEVER
-// Copyright (c) 2018, DCSO GmbH
+// Copyright (c) 2018, 2021, DCSO GmbH
 
 import (
 	"fmt"
@@ -39,6 +39,14 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.fever.yaml)")
+
+	// Management server options
+	rootCmd.PersistentFlags().StringP("mgmt-socket", "", "/tmp/fever-mgmt.sock", "Socket path for management server")
+	viper.BindPFlag("mgmt.socket", rootCmd.PersistentFlags().Lookup("mgmt-socket"))
+	rootCmd.PersistentFlags().StringP("mgmt-host", "", "", "hostname:port definition for management server")
+	viper.BindPFlag("mgmt.host", rootCmd.PersistentFlags().Lookup("mgmt-host"))
+	rootCmd.PersistentFlags().StringP("mgmt-network", "", "tcp", "network (tcp/udp) definition for management server")
+	viper.BindPFlag("mgmt.network", rootCmd.PersistentFlags().Lookup("mgmt-network"))
 }
 
 // initConfig reads in config file and ENV variables if set.

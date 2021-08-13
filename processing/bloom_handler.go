@@ -98,8 +98,9 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 	databaseChan chan types.Entry, forwardHandler Handler, alertPrefix string,
 	blacklistIOCs []string) (*BloomHandler, error) {
 	log.WithFields(log.Fields{
-		"domain": "bloom",
-	}).Infof("loading Bloom filter '%s'", bloomFilename)
+		"domain":   "bloom",
+		"filename": bloomFilename,
+	}).Info("loading Bloom filter from file")
 	iocBloom, err := bloom.LoadFilter(bloomFilename, compressed)
 	if err != nil {
 		if err == io.EOF {
@@ -123,7 +124,7 @@ func MakeBloomHandlerFromFile(bloomFilename string, compressed bool,
 	}
 	bh.BloomFilename = bloomFilename
 	bh.BloomFileIsCompressed = compressed
-	bh.Logger.Info("filter loaded successfully", bloomFilename)
+	bh.Logger.WithFields(log.Fields{}).Info("filter file loaded successfully")
 	return bh, nil
 }
 

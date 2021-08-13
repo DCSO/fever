@@ -1,3 +1,4 @@
 *.eve.json
 *.eve.json.gz
 .vs
+tmp/**

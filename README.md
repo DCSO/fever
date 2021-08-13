@@ -1,4 +1,6 @@
-# 🔥 FEVER [![CircleCI](https://circleci.com/gh/DCSO/fever.svg?style=svg)](https://circleci.com/gh/DCSO/fever)
+# 🔥 FEVER
+
+[![Build Status](https://img.shields.io/github/workflow/status/DCSO/fever/go.yaml)](https://github.com/DCSO/fever/actions/workflows/go.yaml) [![DebianSBadge](https://badges.debian.net/badges/debian/stable/fever/version.svg)](https://packages.debian.org/stable/fever) [![DebianTBadge](https://badges.debian.net/badges/debian/testing/fever/version.svg)](https://packages.debian.org/testing/fever) ![Ubuntu package](https://img.shields.io/ubuntu/v/fever)
 
 The Fast, Extensible, Versatile Event Router (FEVER) is a tool for fast processing of events from Suricata's JSON EVE output. What is meant by 'processing' is defined by a number of modular components, for example facilitating fast ingestion into a database. Other processors implement collection, aggregation and forwarding of various metadata (e.g. aggregated and raw flows, passive DNS data, etc.) as well as performance metrics.
 

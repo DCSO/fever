@@ -10,7 +10,5 @@ find ${MGMT_PATH} -name "*.pb.go" -delete
 protoc \
     --proto_path="${WELL_KNOWN_TYPES}" \
     --proto_path="${MGMT_PATH}" \
-    --proto_path="${GOPATH}/src" \
-    --go_out=paths=source_relative:"${MGMT_PATH}" \
-	--go-grpc_out=paths=source_relative:"${MGMT_PATH}" \
+	--go_out=plugins=grpc:${GOPATH}/src \
         ${MGMT_PATH}/mgmt.proto

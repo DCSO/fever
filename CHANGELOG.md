@@ -2,10 +2,19 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.0] - 2021-08-15
+
+### Added
+- gRPC based infrastructure for remote runtime communication with FEVER process.
+- Runtime control tool for Bloom filter matcher `fever bloom` (#86, #85)
+
+### Changed
+- CI now uses GitHub Actions (#87, #81)
+
 ## [1.2.0] - 2021-06-25
 
 ### Added
-- Support for multiple output sockets with ecent type filtering and
+- Support for multiple output sockets with event type filtering and
   buffers (#84)
 
 ### Changed

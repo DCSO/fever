@@ -10,10 +10,10 @@ import (
 	"os"
 
 	"github.com/DCSO/fever/mgmt"
+	"github.com/google/protobuf/types/known/emptypb"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (

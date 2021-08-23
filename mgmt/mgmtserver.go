@@ -13,11 +13,11 @@ import (
 	"path/filepath"
 
 	"github.com/DCSO/bloom"
+	emptypb "github.com/google/protobuf/types/known/emptypb"
 	"github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (

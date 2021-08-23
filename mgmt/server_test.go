@@ -12,10 +12,11 @@ import (
 
 	"github.com/DCSO/bloom"
 	"github.com/DCSO/fever/processing"
+
+	emptypb "github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	grpc "google.golang.org/grpc"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (

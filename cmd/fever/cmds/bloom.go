@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/DCSO/fever/mgmt"
-	"github.com/google/protobuf/types/known/emptypb"
+	emptypb "github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"

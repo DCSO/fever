@@ -5,7 +5,6 @@ package processing
 
 import (
 	"crypto/tls"
-	"fmt"
 	"sync"
 	"time"
 
@@ -103,31 +102,11 @@ func (fh *ForwardHandler) EnableRDNS(expiryPeriod time.Duration) {
 // AddFields enables the addition of a custom set of top-level fields to the
 // forwarded JSON.
 func (fh *ForwardHandler) AddFields(fields map[string]string) error {
-	j := ""
-	// We preprocess the JSON to be able to only use fast string operations
-	// later. This code progressively builds a JSON snippet by adding JSON
-	// key-value pairs for each added field, e.g. `, "foo":"bar"`.
-	for k, v := range fields {
-		// Escape the fields to make sure we do not mess up the JSON when
-		// encountering weird symbols in field names or values.
-		kval, err := util.EscapeJSON(k)
-		if err != nil {
-			fh.Logger.Warningf("cannot escape value: %s", v)
-			return err
-		}
-		vval, err := util.EscapeJSON(v)
-		if err != nil {
-			fh.Logger.Warningf("cannot escape value: %s", v)
-			return err
-		}
-		j += fmt.Sprintf(",%s:%s", kval, vval)
+	addedFields, err := util.PreprocessAddedFields(fields)
+	if err != nil {
+		return err
 	}
-	// We finish the list of key-value pairs with a final brace:
-	// `, "foo":"bar"}`. This string can now just replace the final brace in a
-	// given JSON string. If there were no added fields, we just leave the
-	// output at the final brace.
-	j += "}"
-	fh.AddedFields = j
+	fh.AddedFields = addedFields
 	return nil
 }
 

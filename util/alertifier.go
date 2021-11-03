@@ -32,6 +32,7 @@ type AlertJSONProvider interface {
 type Alertifier struct {
 	alertPrefix   string
 	extraModifier ExtraModifier
+	addedFields   string
 	matchTypes    map[string]AlertJSONProvider
 }
 
@@ -64,6 +65,17 @@ func (a *Alertifier) SetPrefix(prefix string) {
 // sub-object.
 func (a *Alertifier) SetExtraModifier(em ExtraModifier) {
 	a.extraModifier = em
+}
+
+// SetAddedFields adds string key-value pairs to be added as extra JSON
+// values.
+func (a *Alertifier) SetAddedFields(fields map[string]string) error {
+	af, err := PreprocessAddedFields(fields)
+	if err != nil {
+		return err
+	}
+	a.addedFields = af
+	return nil
 }
 
 // MakeAlert generates a new Entry representing an `alert` event based on the
@@ -140,6 +152,14 @@ func (a *Alertifier) MakeAlert(inputEvent types.Entry, ioc string,
 	l, err = jsonparser.Set(l, []byte(nowTimestampEscaped), "timestamp")
 	if err != nil {
 		return nil, err
+	}
+	// Append added fields string, if present
+	if len(a.addedFields) > 1 {
+		j := l
+		jlen := len(j)
+		j = j[:jlen-1]
+		j = append(j, a.addedFields...)
+		l = j
 	}
 	// update returned entry
 	newEntry.Timestamp = eventTimestampFormatted

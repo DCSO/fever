@@ -140,7 +140,11 @@ func alertify(cmd *cobra.Command, args []string) {
 	limit := viper.GetUint("alert-limit")
 	extrakey := viper.GetString("extra-key")
 
+	addFields := viper.GetStringMapString("add-fields")
 	a := makeAlertifyAlertifier(prefix, extrakey)
+	if err := a.SetAddedFields(addFields); err != nil {
+		log.Fatal(err)
+	}
 	for e := range eventChan {
 		err := emitAlertsForEvent(a, e, ioc, os.Stdout, uint64(limit))
 		if err != nil {

@@ -9,7 +9,7 @@ func TestPreprocessAddedFields(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    []string
 		wantErr bool
 	}{
 		{
@@ -17,7 +17,9 @@ func TestPreprocessAddedFields(t *testing.T) {
 			args: args{
 				fields: map[string]string{},
 			},
-			want: "}",
+			want: []string{
+				"}",
+			},
 		},
 		{
 			name: "fieldset present",
@@ -27,7 +29,10 @@ func TestPreprocessAddedFields(t *testing.T) {
 					"baz": "quux",
 				},
 			},
-			want: `,"foo":"bar","baz":"quux"}`,
+			want: []string{
+				`,"foo":"bar","baz":"quux"}`,
+				`,"baz":"quux","foo":"bar"}`,
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -37,7 +42,14 @@ func TestPreprocessAddedFields(t *testing.T) {
 				t.Errorf("PreprocessAddedFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			found := false
+			for _, w := range tt.want {
+				if got == w {
+					found = true
+					break
+				}
+			}
+			if !found {
 				t.Errorf("PreprocessAddedFields() = %v, want %v", got, tt.want)
 			}
 		})

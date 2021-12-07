@@ -41,17 +41,18 @@ type pDNSEvent struct {
 // PDNSCollector extracts and aggregates DNS response data from
 // EVE events and sends them to the backend.
 type PDNSCollector struct {
-	SensorID      string
-	Count         int64
-	DNSMutex      sync.RWMutex
-	DNS           pDNSEvent
-	StringBuf     bytes.Buffer
-	FlushPeriod   time.Duration
-	CloseChan     chan bool
-	ClosedChan    chan bool
-	Logger        *log.Entry
-	Submitter     util.StatsSubmitter
-	SubmitChannel chan []byte
+	SensorID            string
+	Count               int64
+	DNSMutex            sync.RWMutex
+	DNS                 pDNSEvent
+	StringBuf           bytes.Buffer
+	FlushPeriod         time.Duration
+	CloseChan           chan bool
+	ClosedChan          chan bool
+	Logger              *log.Entry
+	Submitter           util.StatsSubmitter
+	SubmitChannel       chan []byte
+	TestdataDummyDomain string
 }
 
 // MakePDNSCollector creates a new pDNSCollector.
@@ -70,11 +71,12 @@ func MakePDNSCollector(flushPeriod time.Duration, submitter util.StatsSubmitter)
 			SensorID:      sensorID,
 			DNSDetails:    make(map[string]*pDNSDetails),
 		},
-		CloseChan:     make(chan bool),
-		ClosedChan:    make(chan bool),
-		SubmitChannel: make(chan []byte, 60),
-		Submitter:     submitter,
-		SensorID:      sensorID,
+		CloseChan:           make(chan bool),
+		ClosedChan:          make(chan bool),
+		SubmitChannel:       make(chan []byte, 60),
+		Submitter:           submitter,
+		SensorID:            sensorID,
+		TestdataDummyDomain: "",
 	}
 	a.SensorID, _ = os.Hostname()
 	return a, nil
@@ -91,6 +93,19 @@ func (a *PDNSCollector) flush() {
 	}
 	a.Count = 0
 	a.DNSMutex.Unlock()
+	if a.TestdataDummyDomain != "" {
+		myDNS.DNSDetails[a.TestdataDummyDomain] = &pDNSDetails{
+			Details: []pDNSReplyDetails{
+				{
+					AnsweringHost: "0.0.0.0",
+					Rrtype:        "A",
+					Rdata:         "0.0.0.0",
+					Rcode:         "NOERROR",
+					Count:         1,
+				},
+			},
+		}
+	}
 	jsonString, myerror := json.MarshalIndent(myDNS, "", "  ")
 	if myerror == nil {
 		select {
@@ -124,7 +139,7 @@ func (a *PDNSCollector) countRequestV1(e *types.Entry) {
 		a.DNS.DNSDetails[key] = &pDNSDetails{
 			AnswerSet: make(map[string]*pDNSReplyDetails),
 			Details: []pDNSReplyDetails{
-				pDNSReplyDetails{
+				{
 					AnsweringHost: e.SrcIP,
 					Rrtype:        e.DNSRRType,
 					Rdata:         e.DNSRData,
@@ -263,4 +278,10 @@ func (a *PDNSCollector) GetName() string {
 // should be applied to
 func (a *PDNSCollector) GetEventTypes() []string {
 	return []string{"dns"}
+}
+
+// EnableTestdataDomain registers a domain name to be included as each
+// submission as dummy data to be used for end-to-end testing.
+func (a *PDNSCollector) EnableTestdataDomain(domain string) {
+	a.TestdataDummyDomain = domain
 }

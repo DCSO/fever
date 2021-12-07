@@ -391,6 +391,10 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		testdomain := viper.GetString("pdns.test-domain")
+		if testdomain != "" {
+			pdc.EnableTestdataDomain(testdomain)
+		}
 		dispatcher.RegisterHandler(pdc)
 		pdc.Run()
 		defer func() {

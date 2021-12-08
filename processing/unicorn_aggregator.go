@@ -6,6 +6,7 @@ package processing
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -41,6 +42,9 @@ type UnicornAggregator struct {
 	StringBuf            bytes.Buffer
 	UnicornTuplesMutex   sync.RWMutex `json:"-"`
 	UnicornProxyMapMutex sync.RWMutex `json:"-"`
+	TestFlowSrcIP        string
+	TestFlowDestIP       string
+	TestFlowDestPort     int64
 }
 
 // MakeUnicornAggregate creates a new empty UnicornAggregate object.
@@ -59,12 +63,13 @@ func MakeUnicornAggregator(statsSubmitter util.StatsSubmitter,
 		Logger: log.WithFields(log.Fields{
 			"domain": "aggregate",
 		}),
-		Submitter:    statsSubmitter,
-		DummyMode:    dummyMode,
-		SubmitPeriod: submitPeriod,
-		CloseChan:    make(chan bool),
-		ClosedChan:   make(chan bool),
-		Aggregate:    *MakeUnicornAggregate(),
+		Submitter:        statsSubmitter,
+		DummyMode:        dummyMode,
+		SubmitPeriod:     submitPeriod,
+		CloseChan:        make(chan bool),
+		ClosedChan:       make(chan bool),
+		Aggregate:        *MakeUnicornAggregate(),
+		TestFlowDestPort: 99999,
 	}
 	return a
 }
@@ -86,6 +91,16 @@ func (a *UnicornAggregator) stop() {
 }
 
 func (a *UnicornAggregator) submit(submitter util.StatsSubmitter, dummyMode bool) {
+	if a.TestFlowSrcIP != "" && a.TestFlowDestIP != "" {
+		// Inject test flow into aggregation
+		a.CountFlowTuple(
+			fmt.Sprintf("%s_%s_%d", a.TestFlowSrcIP,
+				a.TestFlowDestIP, a.TestFlowDestPort),
+			23,
+			42,
+			20, // count 20 to ensure some limits are met downstream
+		)
+	}
 	// Lock the current measurements for submission. Since this is a blocking
 	// operation, we don't want this to depend on how long submitter.Submit()
 	// takes but keep it independent of that. Hence we take the time to create
@@ -124,12 +139,12 @@ func (a *UnicornAggregator) submit(submitter util.StatsSubmitter, dummyMode bool
 
 // CountFlowTuple increments the flow tuple counter for the given key.
 func (a *UnicornAggregator) CountFlowTuple(key string, bytestoclient int64,
-	bytestoserver int64) {
+	bytestoserver int64, addCnt int64) {
 	a.UnicornTuplesMutex.Lock()
 	if _, ok := a.Aggregate.FlowTuples[key]; !ok {
 		a.Aggregate.FlowTuples[key] = make(map[string]int64)
 	}
-	a.Aggregate.FlowTuples[key]["count"]++
+	a.Aggregate.FlowTuples[key]["count"] += addCnt
 	a.Aggregate.FlowTuples[key]["total_bytes_toclient"] += bytestoclient
 	a.Aggregate.FlowTuples[key]["total_bytes_toserver"] += bytestoserver
 	a.UnicornTuplesMutex.Unlock()
@@ -187,7 +202,7 @@ func (a *UnicornAggregator) Consume(e *types.Entry) error {
 		a.StringBuf.Write([]byte("_"))
 		a.StringBuf.Write([]byte(strconv.Itoa(int(e.DestPort))))
 		a.CountFlowTuple(a.StringBuf.String(), e.BytesToClient,
-			e.BytesToServer)
+			e.BytesToServer, 1)
 		a.StringBuf.Reset()
 	}
 
@@ -209,4 +224,11 @@ func (a *UnicornAggregator) GetName() string {
 // should be applied to
 func (a *UnicornAggregator) GetEventTypes() []string {
 	return []string{"http", "flow"}
+}
+
+// EnableTestFlow adds a dummy flow with the given specs to each aggregation
+func (a *UnicornAggregator) EnableTestFlow(srcip, dstip string, dstport int64) {
+	a.TestFlowSrcIP = srcip
+	a.TestFlowDestIP = dstip
+	a.TestFlowDestPort = dstport
 }

@@ -441,6 +441,12 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			}).Info("compression of flow stats")
 		}
 		ua := processing.MakeUnicornAggregator(submitter, unicornSleep, dummyMode)
+		testSrcIP := viper.GetString("flowreport.testdata-srcip")
+		testDestIP := viper.GetString("flowreport.testdata-destip")
+		testDestPort := viper.GetInt64("flowreport.testdata-destport")
+		if testSrcIP != "" && testDestIP != "" {
+			ua.EnableTestFlow(testSrcIP, testDestIP, testDestPort)
+		}
 		dispatcher.RegisterHandler(ua)
 		ua.Run()
 		defer func() {

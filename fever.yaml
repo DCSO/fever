@@ -92,6 +92,9 @@ pdns:
   enable: true
   submission-url: amqp://guest:guest@localhost:5672/
   submission-exchange: pdns
+  # If test-domain is non-empty, add an extra A observation for this rrname to
+  # all submissions
+  #test-domain: heartbeat.fever-heartbeat
 
 # Configuration for alert-associated metadata submission.
 context:

@@ -177,6 +177,33 @@ To feed EVE data into FEVER using Redis (started with `-r`), you can simply LPUS
 $ head -n 100000 huge.eve.json | scripts/makelpush | redis-cli > /dev/null
 ```
 
+## End-to-end testing support
+
+FEVER can optionally inject in-band test data into downstream submissions, such as passive DNS observations, so allow automated checks that receiving components are updated correctly.
+
+*  For passive DNS observation submissions, use the `pdns.test-domain` config item to insert a dummy entry for that domain, e.g. for `pdns.tests-domain` set to `heartbeat.fever-heartbeat`:
+   ```json
+   {
+     "timestamp_start": "2021-12-07T18:18:00.029197078Z",
+     "timestamp_end": "2021-12-07T18:19:00.063460044Z",
+     "dns": {
+       "heartbeat.fever-heartbeat": {
+         "rdata": [
+           {
+             "answering_host": "0.0.0.0",
+             "rrtype": "A",
+             "rdata": "0.0.0.0",
+             "rcode": "NOERROR",
+             "count": 1
+           }
+         ]
+       },
+   ...
+     }
+   }
+   ```
+
+
 ## Author/Contact
 
 Sascha Steinbiss

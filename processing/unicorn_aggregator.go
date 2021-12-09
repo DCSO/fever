@@ -137,7 +137,9 @@ func (a *UnicornAggregator) submit(submitter util.StatsSubmitter, dummyMode bool
 
 }
 
-// CountFlowTuple increments the flow tuple counter for the given key.
+// CountFlowTuple increments the flow tuple counter for the given key. If addCnt
+// is >1, then the caller is responsible for providing the correct (sub-total)
+// counts for bytestoclient and bytestoserver.
 func (a *UnicornAggregator) CountFlowTuple(key string, bytestoclient int64,
 	bytestoserver int64, addCnt int64) {
 	a.UnicornTuplesMutex.Lock()

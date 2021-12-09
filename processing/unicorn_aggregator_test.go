@@ -184,6 +184,56 @@ func TestUnicornAggregator(t *testing.T) {
 	}
 }
 
+func TestUnicornAggregatorWithTestdata(t *testing.T) {
+	rand.Seed(time.Now().UTC().UnixNano())
+	dsub := &testSubmitter{
+		Data: make([]string, 0),
+	}
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
+	f.EnableTestFlow("1.2.3.4", "5.6.7.8", 33333)
+	f.Run()
+
+	for {
+		if dsub.GetTotalAggs() < 1 {
+			log.Debug(dsub.GetTotalAggs())
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			break
+		}
+	}
+
+	consumeWaitChan := make(chan bool)
+	f.Stop(consumeWaitChan)
+	<-consumeWaitChan
+
+	var d UnicornAggregate
+
+	err := json.Unmarshal([]byte(dsub.Data[0]), &d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := d.FlowTuples["1.2.3.4_5.6.7.8_33333"]; ok {
+		if val, ok := v["count"]; ok {
+			if val != 20 {
+				t.Fatalf("wrong value: %v", val)
+			}
+		}
+		if val, ok := v["total_bytes_toclient"]; ok {
+			if val != 23 {
+				t.Fatalf("wrong value: %v", val)
+			}
+		}
+		if val, ok := v["total_bytes_toserver"]; ok {
+			if val != 42 {
+				t.Fatalf("wrong value: %v", val)
+			}
+		}
+	} else {
+		t.Fatalf("missing key in map: %v", d.FlowTuples)
+	}
+
+}
+
 func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	dsub := &testSubmitter{

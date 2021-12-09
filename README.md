@@ -213,7 +213,7 @@ FEVER can optionally inject in-band test data into downstream submissions, such 
    }
    ```
    will be created and forwarded.
-*  For passive DNS observation submissions, use the `pdns.test-domain` config item to insert a dummy entry for that domain, e.g. for `pdns.tests-domain` set to `heartbeat.fever-heartbeat`:
+* For passive DNS observation submissions, use the `pdns.test-domain` config item to insert a dummy entry for that domain, e.g. for `pdns.test-domain` set to `heartbeat.fever-heartbeat`:
    ```json
    {
      "timestamp_start": "2021-12-07T18:18:00.029197078Z",
@@ -230,11 +230,34 @@ FEVER can optionally inject in-band test data into downstream submissions, such 
            }
          ]
        },
-   ...
+      ...
      }
    }
    ```
-
+*  For flow report submission, use the `flowreport.testdata*` config items to insert a dummy flow for that specific IPs and ports, e.g. for :
+   ```yaml
+   flowreport:
+     # ...
+     testdata-srcip: 0.0.0.1
+     testdata-destip: 0.0.0.2
+     testdata-destport: 99999
+   ```
+   we would get
+   ```json
+   {
+      "sensor-id": "XXX",
+      "time-start": "2021-12-08T13:53:36.442182896+01:00",
+      "time-end": "2021-12-08T13:53:46.490743527+01:00",
+      "tuples": {
+          "0.0.0.1_0.0.0.2_99999": {
+              "count": 1,
+              "total_bytes_toclient": 23,
+              "total_bytes_toserver": 42
+          }
+      },
+      ...
+   }
+   ```
 
 ## Author/Contact
 

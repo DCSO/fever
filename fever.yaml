@@ -80,6 +80,11 @@ flowreport:
   submission-exchange: aggregations
   # Set to true to disable gzip compression for uploads.
   nocompress: false
+  # If both srcip and destip are non-empty, inject an extra flow record for
+  # these towards the given destination port.
+  #testdata-srcip: 0.0.0.1
+  #testdata-destip: 0.0.0.2
+  #testdata-destport: 99999
 
 # Configuration for metrics (i.e. InfluxDB) submission.
 metrics:

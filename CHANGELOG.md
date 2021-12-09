@@ -2,6 +2,20 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.2] - 2021-12-09
+
+### Added
+- End-to-end test support
+  - Add heartbeat alerts to forwarded events (#94)
+  - Add flow report testdata submission (#93)
+  - Add passive DNS testdata submission (#92)
+- Add option to remove `null` JSON fields when using `fever alertify` (#91)
+
+## [1.3.1] - 2021-11-03
+
+### Fixed
+- Ensure that alertified events also contain added fields (#90)
+
 ## [1.3.0] - 2021-08-15
 
 ### Added

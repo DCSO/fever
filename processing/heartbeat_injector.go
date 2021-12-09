@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2020, DCSO GmbH
+// Copyright (c) 2020, 2021, DCSO GmbH
 
 import (
 	"encoding/json"
@@ -29,13 +29,14 @@ var (
 type HeartbeatInjector struct {
 	SensorID       string
 	Times          []string
+	AlertTimes     []string
 	CloseChan      chan bool
 	Logger         *log.Entry
 	ForwardHandler Handler
 }
 
 // MakeHeartbeatInjector creates a new HeartbeatInjector.
-func MakeHeartbeatInjector(forwardHandler Handler, injectTimes []string) (*HeartbeatInjector, error) {
+func MakeHeartbeatInjector(forwardHandler Handler, injectTimes []string, alertTimes []string) (*HeartbeatInjector, error) {
 	sensorID, err := util.GetSensorID()
 	if err != nil {
 		return nil, err
@@ -45,19 +46,25 @@ func MakeHeartbeatInjector(forwardHandler Handler, injectTimes []string) (*Heart
 			return nil, fmt.Errorf("invalid time specification in heartbeat injector config: '%s'", v)
 		}
 	}
+	for _, v := range alertTimes {
+		if !injectTimeRegex.Match([]byte(v)) {
+			return nil, fmt.Errorf("invalid alert time specification in heartbeat injector config: '%s'", v)
+		}
+	}
 	a := &HeartbeatInjector{
 		ForwardHandler: forwardHandler,
 		Logger: log.WithFields(log.Fields{
 			"domain": "heartbeat_injector",
 		}),
-		Times:     injectTimes,
-		CloseChan: make(chan bool),
-		SensorID:  sensorID,
+		Times:      injectTimes,
+		AlertTimes: alertTimes,
+		CloseChan:  make(chan bool),
+		SensorID:   sensorID,
 	}
 	return a, nil
 }
 
-func makeHeartbeatEvent() types.Entry {
+func makeHeartbeatEvent(eventType string) types.Entry {
 	now := time.Now()
 	entry := types.Entry{
 		SrcIP:     "192.0.2.1",
@@ -65,7 +72,7 @@ func makeHeartbeatEvent() types.Entry {
 		DestIP:    "192.0.2.2",
 		DestPort:  80,
 		Timestamp: time.Now().Format(types.SuricataTimestampFormat),
-		EventType: "http",
+		EventType: eventType,
 		Proto:     "TCP",
 		HTTPHost: fmt.Sprintf("test-%d-%02d-%02d.vast",
 			now.Year(), now.Month(), now.Day()),
@@ -93,6 +100,15 @@ func makeHeartbeatEvent() types.Entry {
 			HTTPContentType: "text/html",
 		},
 	}
+	if eventType == "alert" {
+		eve.Alert = &types.AlertEvent{
+			Action:    "allowed",
+			Category:  "Not Suspicious Traffic",
+			Signature: "DCSO FEVER TEST alert",
+		}
+		entry.HTTPHost = "testalert.fever"
+		eve.HTTP.Hostname = entry.HTTPHost
+	}
 	json, err := json.Marshal(eve)
 	if err != nil {
 		log.Warn(err)
@@ -113,7 +129,15 @@ func (a *HeartbeatInjector) Run() {
 				curTime := time.Now().Format("15:04")
 				for _, timeVal := range a.Times {
 					if curTime == timeVal {
-						ev := makeHeartbeatEvent()
+						ev := makeHeartbeatEvent("http")
+						a.Logger.Debugf("creating heartbeat event for %s: %s",
+							curTime, string(ev.JSONLine))
+						a.ForwardHandler.Consume(&ev)
+					}
+				}
+				for _, timeVal := range a.AlertTimes {
+					if curTime == timeVal {
+						ev := makeHeartbeatEvent("alert")
 						a.Logger.Debugf("creating heartbeat event for %s: %s",
 							curTime, string(ev.JSONLine))
 						a.ForwardHandler.Consume(&ev)

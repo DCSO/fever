@@ -513,8 +513,9 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	// Heartbeat injector
 	enableHeartbeat := viper.GetBool("heartbeat.enable")
 	heartbeatTimes := viper.GetStringSlice("heartbeat.times")
+	heartbeatAlertTimes := viper.GetStringSlice("heartbeat.alert-times")
 	if enableHeartbeat {
-		hi, err := processing.MakeHeartbeatInjector(forwardHandler, heartbeatTimes)
+		hi, err := processing.MakeHeartbeatInjector(forwardHandler, heartbeatTimes, heartbeatAlertTimes)
 		if err != nil {
 			log.Fatal(err)
 		}

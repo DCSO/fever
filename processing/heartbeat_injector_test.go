@@ -1,7 +1,7 @@
 package processing
 
 // DCSO FEVER
-// Copyright (c) 2020, DCSO GmbH
+// Copyright (c) 2020, 2021, DCSO GmbH
 
 import (
 	"fmt"
@@ -39,7 +39,18 @@ func TestHeartbeatInjectorInvalidTime(t *testing.T) {
 		Entries: make([]types.Entry, 0),
 	}
 
-	_, err := MakeHeartbeatInjector(&hbth, []string{"foo"})
+	_, err := MakeHeartbeatInjector(&hbth, []string{"foo"}, []string{})
+	if err == nil {
+		t.Fatal("invalid time not caught")
+	}
+}
+
+func TestHeartbeatInjectorInvalidAlertTime(t *testing.T) {
+	hbth := HeartbeatTestFwdHandler{
+		Entries: make([]types.Entry, 0),
+	}
+
+	_, err := MakeHeartbeatInjector(&hbth, []string{}, []string{"foo"})
 	if err == nil {
 		t.Fatal("invalid time not caught")
 	}
@@ -53,7 +64,7 @@ func TestHeartbeatInjector(t *testing.T) {
 	now := time.Now()
 	ctime := []string{now.Format("15:04")}
 
-	hbi, err := MakeHeartbeatInjector(&hbth, ctime)
+	hbi, err := MakeHeartbeatInjector(&hbth, ctime, []string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,5 +91,41 @@ func TestHeartbeatInjector(t *testing.T) {
 	}
 	if seenHost != expectedHost {
 		t.Fatalf("wrong hostname for heartbeat: %s", seenHost)
+	}
+}
+
+func TestHeartbeatAlertInjector(t *testing.T) {
+	hbth := HeartbeatTestFwdHandler{
+		Entries: make([]types.Entry, 0),
+	}
+
+	now := time.Now()
+	atime := []string{now.Format("15:04")}
+
+	hbi, err := MakeHeartbeatInjector(&hbth, []string{}, atime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hbi.Run()
+	for {
+		hbth.Lock.Lock()
+		if len(hbth.Entries) > 0 {
+			hbth.Lock.Unlock()
+			break
+		}
+		hbth.Lock.Unlock()
+		time.Sleep(100 * time.Millisecond)
+	}
+	hbi.Stop()
+
+	hbJSON := hbth.Entries[0].JSONLine
+
+	sig, err := jsonparser.GetString([]byte(hbJSON), "alert", "signature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sig != "DCSO FEVER TEST alert" {
+		t.Fatalf("wrong signature for test alert: %s", sig)
 	}
 }

@@ -181,6 +181,38 @@ $ head -n 100000 huge.eve.json | scripts/makelpush | redis-cli > /dev/null
 
 FEVER can optionally inject in-band test data into downstream submissions, such as passive DNS observations, so allow automated checks that receiving components are updated correctly.
 
+* For injecting test alerts into the forwarded stream, use the `heartbeat.alert-times` list to specify when an alert heartbeat should be injected. The approach is identical to the one for the general heartbeats: at each specified time, an alert like
+   ```json
+   {
+       "timestamp": "2021-12-09T09:49:35.641252+0000",
+       "event_type": "alert",
+       "src_ip": "192.0.2.1",
+       "src_port": 39106,
+       "dest_ip": "192.0.2.2",
+       "dest_port": 80,
+       "proto": "TCP",
+       "alert": {
+           "action": "allowed",
+           "gid": 0,
+           "signature_id": 0,
+           "rev": 0,
+           "signature": "DCSO FEVER TEST alert",
+           "category": "Not Suspicious Traffic",
+           "severity": 0
+       },
+       "http": {
+           "hostname": "test-2021-12-09.vast",
+           "url": "/just-visiting",
+           "http_user_agent": "FEVER",
+           "http_content_type": "text/html",
+           "http_method": "GET",
+           "protocol": "HTTP/1.1",
+           "status": 200,
+           "length": 42
+       }
+   }
+   ```
+   will be created and forwarded.
 *  For passive DNS observation submissions, use the `pdns.test-domain` config item to insert a dummy entry for that domain, e.g. for `pdns.tests-domain` set to `heartbeat.fever-heartbeat`:
    ```json
    {

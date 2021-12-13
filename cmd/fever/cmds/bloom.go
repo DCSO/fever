@@ -98,7 +98,7 @@ var bloomReloadCmd = &cobra.Command{
 
 var bloomCmd = &cobra.Command{
 	Use:   "bloom",
-	Short: "bloom",
+	Short: "modify Bloom filter used by FEVER for detection",
 	Long:  `The 'bloom' command interacts with FEVER's Bloom filter matcher.`,
 }
 

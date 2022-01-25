@@ -12,6 +12,14 @@ import (
 	"github.com/DCSO/fever/types"
 )
 
+var nullEntry = types.Entry{
+	Timestamp: "2017-03-06T06:54:10.839668+0000",
+	EventType: "fileinfo",
+	JSONLine:  `{"timestamp":"2017-03-06T06:54:10.839668+0000","flow_id":null,"in_iface":"enp2s0f1","event_type":"fileinfo","vlan":null,"src_ip":null,"src_port":null,"dest_ip":null,"dest_port":null,"http":{"hostname":"api.icndb.com","url":null,"state":"CLOSED","md5":null}}`,
+	Iface:     "enp2s0f1",
+	HTTPHost:  "api.icndb.com",
+}
+
 var entries = []types.Entry{
 	types.Entry{
 		SrcIP:     "10.0.0.10",
@@ -124,6 +132,31 @@ func TestJSONParseEVEempty(t *testing.T) {
 	}
 	if i > 0 {
 		t.Fatal("empty file should not generate any entries")
+	}
+}
+
+func TestJSONParseEVEwithnull(t *testing.T) {
+	f, err := os.Open("testdata/jsonparse_eve_nulls.json")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	scanner := bufio.NewScanner(f)
+	i := 0
+	var entry types.Entry
+	for scanner.Scan() {
+		json := scanner.Bytes()
+		e, err := ParseJSON(json)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+		entry = e
+		i++
+	}
+	if i != 1 {
+		t.Fatalf("should parse only one entry, got %d", i)
+	}
+	if !reflect.DeepEqual(nullEntry, entry) {
+		t.Fatalf("entry %d parsed from JSON does not match expected value", i)
 	}
 }
 

@@ -4,6 +4,7 @@ package util
 // Copyright (c) 2017, 2018, 2020, DCSO GmbH
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -71,6 +72,11 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 		}
 		if err != nil {
 			parseerr = err
+			return
+		}
+		// skip null fields; these will not be handled by the low-level
+		// jsonparser.Parse* () functions
+		if bytes.Equal(value, []byte("null")) {
 			return
 		}
 		switch idx {

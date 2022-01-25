@@ -2,6 +2,11 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.3] - 2022-01-25
+
+### Changed
+- Fixed handling of JSON `null` values (#97)
+
 ## [1.3.2] - 2021-12-09
 
 ### Added

@@ -108,20 +108,6 @@ context:
   submission-url: amqp://guest:guest@localhost:5672/
   submission-exchange: context
 
-# Configuration for Stenosis (persisted full packet capture).
-stenosis:
-  enable: false
-  submission-url: http://localhost:19205/
-  submission-timeout: 5s
-  # Set to true and parameters below to enable TLS connection to Stenosis
-  tls: false
-  client-chain-file: client.crt
-  client-key-file: client.key
-  root-cas:
-      - root.crt
-  skipverify: false
-  # interface: "*"
-
 # Extra fields to add to each forwarded event.
 #add-fields:
 #  sensor-id: foobar

@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"io"
 	"os"
 	"os/signal"
@@ -226,36 +225,6 @@ func mainfunc(cmd *cobra.Command, args []string) {
 			privateOnly := viper.GetBool("active.rdns-private-only")
 			if privateOnly {
 				fh.RDNSHandler.EnableOnlyPrivateIPRanges()
-			}
-		}
-
-		stenosis := viper.GetBool("stenosis.enable")
-		if stenosis {
-			// flow notifier setup
-			flowNotifyChan := make(chan types.Entry)
-			defer close(flowNotifyChan)
-			fn := processing.MakeFlowNotifier(flowNotifyChan)
-			dispatcher.RegisterHandler(fn)
-			var tlsConfig *tls.Config
-			if viper.GetBool("stenosis.tls") {
-				tlsConfig, err = util.MakeTLSConfig(viper.GetString("stenosis.client-chain-file"),
-					viper.GetString("stenosis.client-key-file"),
-					viper.GetStringSlice("stenosis.root-cas"),
-					viper.GetBool("stenosis.skipverify"))
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-			stenosisTimeBracket := viper.GetDuration("stenosis.time-bracket")
-			stenosisTimeout := viper.GetDuration("stenosis.submission-timeout")
-			stenosisCacheExpiry := viper.GetDuration("stenosis.cache-expiry")
-			stenosisURL := viper.GetString("stenosis.submission-url")
-			stenosisIface := viper.GetString("stenosis.interface")
-
-			if err := fh.EnableStenosis(stenosisURL,
-				stenosisTimeout, stenosisTimeBracket, flowNotifyChan, stenosisCacheExpiry,
-				tlsConfig, stenosisIface); err != nil {
-				log.Fatal(err)
 			}
 		}
 

@@ -84,16 +84,6 @@ Flags:
       --pdns-submission-url string               URL to which passive DNS events will be submitted (default "amqp://guest:guest@localhost:5672/")
       --profile string                           enable runtime profiling to given file
       --reconnect-retries uint                   number of retries connecting to socket or sink, 0 = no retry limit
-      --stenosis-cache-expiry duration           alert cache expiry timeout (default 30m0s)
-      --stenosis-client-chain-file string        certificate file for Stenosis TLS connection (default "stenosis.crt")
-      --stenosis-client-key-file string          key file for Stenosis TLS connection (default "stenosis.key")
-      --stenosis-enable                          notify Stenosis instance on alert
-      --stenosis-interface string                interface to watch events for (default "*")
-      --stenosis-root-cas strings                root certificate(s) for TLS connection to stenosis (default [root.crt])
-      --stenosis-skipverify                      skip TLS certificate verification
-      --stenosis-submission-timeout duration     timeout for connecting to Stenosis (default 5s)
-      --stenosis-submission-url string           URL to which Stenosis requests will be submitted (default "http://localhost:19205")
-      --stenosis-tls                             use TLS for Stenosis
       --toolname string                          set toolname (default "fever")
   -v, --verbose                                  enable verbose logging (debug log level)
 

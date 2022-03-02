@@ -4,7 +4,6 @@ package processing
 // Copyright (c) 2017, 2020, DCSO GmbH
 
 import (
-	"crypto/tls"
 	"sync"
 	"time"
 
@@ -18,17 +17,15 @@ import (
 // representation into a UNIX socket. This is limited by a list of allowed
 // event types to be forwarded.
 type ForwardHandler struct {
-	Logger            *log.Entry
-	DoRDNS            bool
-	RDNSHandler       *RDNSHandler
-	AddedFields       string
-	ContextCollector  *ContextCollector
-	StenosisIface     string
-	StenosisConnector *StenosisConnector
-	FlowNotifyChan    chan types.Entry
-	MultiFwdChan      chan types.Entry
-	Running           bool
-	Lock              sync.Mutex
+	Logger           *log.Entry
+	DoRDNS           bool
+	RDNSHandler      *RDNSHandler
+	AddedFields      string
+	ContextCollector *ContextCollector
+	FlowNotifyChan   chan types.Entry
+	MultiFwdChan     chan types.Entry
+	Running          bool
+	Lock             sync.Mutex
 }
 
 // MakeForwardHandler creates a new forwarding handler
@@ -69,15 +66,9 @@ func (fh *ForwardHandler) Consume(inEntry *types.Entry) error {
 		j += fh.AddedFields
 		e.JSONLine = j
 	}
-	// if we use Stenosis, the Stenosis connector will take ownership of
-	// alerts
-	if fh.StenosisConnector != nil &&
-		e.EventType == types.EventTypeAlert &&
-		(fh.StenosisIface == "*" || e.Iface == fh.StenosisIface) {
-		fh.StenosisConnector.Accept(&e)
-	} else {
-		fh.MultiFwdChan <- e
-	}
+
+	fh.MultiFwdChan <- e
+
 	return nil
 }
 
@@ -108,13 +99,4 @@ func (fh *ForwardHandler) AddFields(fields map[string]string) error {
 	}
 	fh.AddedFields = addedFields
 	return nil
-}
-
-// EnableStenosis connects the ForwardHandler with a Stenosis connector.
-func (fh *ForwardHandler) EnableStenosis(endpoint string, timeout, timeBracket time.Duration,
-	notifyChan chan types.Entry, cacheExpiry time.Duration, tlsConfig *tls.Config, iface string) (err error) {
-	fh.StenosisConnector, err = MakeStenosisConnector(endpoint, timeout, timeBracket,
-		notifyChan, fh.MultiFwdChan, cacheExpiry, tlsConfig)
-	fh.StenosisIface = iface
-	return
 }

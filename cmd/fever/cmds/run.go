@@ -698,28 +698,6 @@ func init() {
 	runCmd.PersistentFlags().DurationP("context-cache-timeout", "", 60*time.Minute, "time for flow metadata to be kept for uncompleted flows")
 	viper.BindPFlag("context.cache-timeout", runCmd.PersistentFlags().Lookup("context-cache-timeout"))
 
-	// Stenosis options
-	runCmd.PersistentFlags().BoolP("stenosis-enable", "", false, "notify Stenosis instance on alert")
-	viper.BindPFlag("stenosis.enable", runCmd.PersistentFlags().Lookup("stenosis-enable"))
-	runCmd.PersistentFlags().StringP("stenosis-submission-url", "", "http://localhost:19205", "URL to which Stenosis requests will be submitted")
-	viper.BindPFlag("stenosis.submission-url", runCmd.PersistentFlags().Lookup("stenosis-submission-url"))
-	runCmd.PersistentFlags().BoolP("stenosis-tls", "", false, "use TLS for Stenosis")
-	viper.BindPFlag("stenosis.tls", runCmd.PersistentFlags().Lookup("stenosis-tls"))
-	runCmd.PersistentFlags().BoolP("stenosis-skipverify", "", false, "skip TLS certificate verification")
-	viper.BindPFlag("stenosis.skipverify", runCmd.PersistentFlags().Lookup("stenosis-skipverify"))
-	runCmd.PersistentFlags().StringP("stenosis-client-key-file", "", "stenosis.key", "key file for Stenosis TLS connection")
-	viper.BindPFlag("stenosis.client-key-file", runCmd.PersistentFlags().Lookup("stenosis-client-key-file"))
-	runCmd.PersistentFlags().StringP("stenosis-client-chain-file", "", "stenosis.crt", "certificate file for Stenosis TLS connection")
-	viper.BindPFlag("stenosis.client-chain-file", runCmd.PersistentFlags().Lookup("stenosis-client-chain-file"))
-	runCmd.PersistentFlags().StringSliceP("stenosis-root-cas", "", []string{"root.crt"}, "root certificate(s) for TLS connection to stenosis")
-	viper.BindPFlag("stenosis.root-cas", runCmd.PersistentFlags().Lookup("stenosis-root-cas"))
-	runCmd.PersistentFlags().DurationP("stenosis-submission-timeout", "", 5*time.Second, "timeout for connecting to Stenosis")
-	viper.BindPFlag("stenosis.submission-timeout", runCmd.PersistentFlags().Lookup("stenosis-submission-timeout"))
-	runCmd.PersistentFlags().DurationP("stenosis-cache-expiry", "", 30*time.Minute, "alert cache expiry timeout")
-	viper.BindPFlag("stenosis.cache-expiry", runCmd.PersistentFlags().Lookup("stenosis-cache-expiry"))
-	runCmd.PersistentFlags().StringP("stenosis-interface", "", "*", "interface to watch events for")
-	viper.BindPFlag("stenosis.interface", runCmd.PersistentFlags().Lookup("stenosis-interface"))
-
 	// Heartbeat options
 	runCmd.PersistentFlags().BoolP("heartbeat-enable", "", false, "Forward HTTP heartbeat event")
 	viper.BindPFlag("heartbeat.enable", runCmd.PersistentFlags().Lookup("heartbeat-enable"))

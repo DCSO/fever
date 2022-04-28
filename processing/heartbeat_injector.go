@@ -130,7 +130,7 @@ func (a *HeartbeatInjector) Run() {
 				for _, timeVal := range a.Times {
 					if curTime == timeVal {
 						ev := makeHeartbeatEvent("http")
-						a.Logger.Debugf("creating heartbeat event for %s: %s",
+						a.Logger.Infof("creating heartbeat HTTP event for %s: %s",
 							curTime, string(ev.JSONLine))
 						a.ForwardHandler.Consume(&ev)
 					}
@@ -138,7 +138,7 @@ func (a *HeartbeatInjector) Run() {
 				for _, timeVal := range a.AlertTimes {
 					if curTime == timeVal {
 						ev := makeHeartbeatEvent("alert")
-						a.Logger.Debugf("creating heartbeat event for %s: %s",
+						a.Logger.Infof("creating heartbeat alert event for %s: %s",
 							curTime, string(ev.JSONLine))
 						a.ForwardHandler.Consume(&ev)
 					}

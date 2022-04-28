@@ -2,6 +2,15 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.4] - 2022-04-28
+
+### Changed
+- Log heartbeat creation with Info level (#100)
+- Update Go dependency versions (#99)
+
+### Removed
+- Support for Stenosis (#98)
+
 ## [1.3.3] - 2022-01-25
 
 ### Changed

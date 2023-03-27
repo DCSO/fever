@@ -2,6 +2,11 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.5] - 2023-03-27
+
+### Fixed
+- Properly handle `null` fields in DNS v2 data (#104)
+
 ## [1.3.4] - 2022-04-28
 
 ### Changed

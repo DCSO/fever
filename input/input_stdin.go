@@ -1,7 +1,7 @@
 package input
 
 // DCSO FEVER
-// Copyright (c) 2020, DCSO GmbH
+// Copyright (c) 2020, 2023, DCSO GmbH
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// StdinInput is an Input reading JSON EVE input from a Unix socket.
+// StdinInput is an Input reading JSON EVE input from standard input.
 type StdinInput struct {
 	EventChan     chan types.Entry
 	Verbose       bool

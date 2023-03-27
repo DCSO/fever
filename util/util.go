@@ -1,13 +1,14 @@
 package util
 
 // DCSO FEVER
-// Copyright (c) 2017, 2018, 2020, DCSO GmbH
+// Copyright (c) 2017, 2023, DCSO GmbH
 
 import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -71,7 +72,7 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 			return
 		}
 		if err != nil {
-			parseerr = err
+			parseerr = fmt.Errorf("%d: %w", idx, err)
 			return
 		}
 		// skip null fields; these will not be handled by the low-level
@@ -83,7 +84,7 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 		case 0:
 			e.EventType, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 1:
@@ -91,7 +92,7 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 		case 2:
 			e.SrcPort, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 3:
@@ -99,7 +100,7 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 		case 4:
 			e.DestPort, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 5:
@@ -109,85 +110,85 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 		case 7:
 			e.BytesToClient, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 8:
 			e.BytesToServer, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 9:
 			e.HTTPHost, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 10:
 			e.HTTPUrl, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 11:
 			e.HTTPMethod, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 12:
 			e.DNSRRName, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 13:
 			e.PktsToClient, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 14:
 			e.PktsToServer, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 15:
 			e.DNSRCode, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 16:
 			e.DNSRData, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 17:
 			e.DNSRRType, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 18:
 			e.DNSType, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 19:
 			e.TLSSNI, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 20:
 			e.DNSVersion, err = jsonparser.ParseInt(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 21:
@@ -200,25 +201,44 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 						return
 					}
 					if err != nil {
-						parseerr = err
+						parseerr = fmt.Errorf("%d: %w", idx, err)
+						return
+					}
+					if bytes.Equal(mvalue, []byte("null")) {
 						return
 					}
 					rdata, merr = jsonparser.GetString(mvalue, "rdata")
 					if merr != nil {
 						if merr != jsonparser.KeyPathNotFoundError {
-							parseerr = merr
-							return
+							// We do not want to report errors caused by the
+							// parser not being able to parse "null" values.
+							// In this case it would report the message
+							// "Value is not a string: null".
+							if !strings.Contains(merr.Error(), "null") {
+								parseerr = merr
+								return
+							}
 						}
 					}
 					rrname, merr = jsonparser.GetString(mvalue, "rrname")
 					if merr != nil {
-						parseerr = merr
-						return
+						if merr != jsonparser.KeyPathNotFoundError {
+							// See above.
+							if !strings.Contains(merr.Error(), "null") {
+								parseerr = merr
+								return
+							}
+						}
 					}
 					rrtype, merr = jsonparser.GetString(mvalue, "rrtype")
 					if merr != nil {
-						parseerr = merr
-						return
+						if merr != jsonparser.KeyPathNotFoundError {
+							// See above.
+							if !strings.Contains(merr.Error(), "null") {
+								parseerr = merr
+								return
+							}
+						}
 					}
 					dnsa := types.DNSAnswer{
 						DNSRCode:  e.DNSRCode,
@@ -230,31 +250,31 @@ func ParseJSON(json []byte) (e types.Entry, parseerr error) {
 				})
 			}
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 22:
 			e.FlowID, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 23:
 			e.Iface, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 24:
 			e.AppProto, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		case 25:
 			e.TLSFingerprint, err = jsonparser.ParseString(value)
 			if err != nil {
-				parseerr = err
+				parseerr = fmt.Errorf("%d: %w", idx, err)
 				return
 			}
 		}

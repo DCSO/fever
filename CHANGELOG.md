@@ -2,6 +2,12 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.6] - 2024-07-03
+
+### Added
+- Add support for sending aggregations from all flows, not just TCP
+  bidirectional ones.
+
 ## [1.3.5] - 2023-03-27
 
 ### Fixed

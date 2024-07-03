@@ -85,6 +85,8 @@ flowreport:
   #testdata-srcip: 0.0.0.1
   #testdata-destip: 0.0.0.2
   #testdata-destport: 99999
+  # Set to true to count _all_ flows, not just TCP bidirectional ones.
+  all: false
 
 # Configuration for metrics (i.e. InfluxDB) submission.
 metrics:

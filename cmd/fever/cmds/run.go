@@ -409,7 +409,9 @@ func mainfunc(cmd *cobra.Command, args []string) {
 				"state":  "disabled",
 			}).Info("compression of flow stats")
 		}
-		ua := processing.MakeUnicornAggregator(submitter, unicornSleep, dummyMode)
+		allFlows := viper.GetBool("flowreport.all")
+		ua := processing.MakeUnicornAggregator(submitter, unicornSleep, dummyMode,
+			allFlows)
 		testSrcIP := viper.GetString("flowreport.testdata-srcip")
 		testDestIP := viper.GetString("flowreport.testdata-destip")
 		testDestPort := viper.GetInt64("flowreport.testdata-destport")

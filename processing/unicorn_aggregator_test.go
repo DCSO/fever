@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func makeUnicornFlowEvent() types.Entry {
+func makeUnicornFlowEvent(proto string) types.Entry {
 	e := types.Entry{
 		SrcIP:         fmt.Sprintf("10.%d.%d.%d", rand.Intn(250), rand.Intn(250), rand.Intn(250)),
 		SrcPort:       []int64{1, 2, 3, 4, 5}[rand.Intn(5)],
@@ -23,7 +23,7 @@ func makeUnicornFlowEvent() types.Entry {
 		DestPort:      []int64{11, 12, 13, 14, 15}[rand.Intn(5)],
 		Timestamp:     time.Now().Format(types.SuricataTimestampFormat),
 		EventType:     "flow",
-		Proto:         "TCP",
+		Proto:         proto,
 		BytesToClient: int64(rand.Intn(10000)),
 		BytesToServer: int64(rand.Intn(10000)),
 		PktsToClient:  int64(rand.Intn(100)),
@@ -101,7 +101,7 @@ func TestUnicornAggregatorNoSubmission(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 100*time.Millisecond, false)
+	f := MakeUnicornAggregator(dsub, 100*time.Millisecond, false, false)
 	f.Run()
 
 	time.Sleep(1 * time.Second)
@@ -128,12 +128,12 @@ func TestUnicornAggregator(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false, false)
 	f.Run()
 
 	createdFlows := make(map[string]int)
 	for i := 0; i < 200000; i++ {
-		ev := makeUnicornFlowEvent()
+		ev := makeUnicornFlowEvent("TCP")
 		if ev.BytesToClient > 0 {
 			key := fmt.Sprintf("%s_%s_%d", ev.SrcIP, ev.DestIP, ev.DestPort)
 			createdFlows[key]++
@@ -189,7 +189,7 @@ func TestUnicornAggregatorWithTestdata(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false, false)
 	f.EnableTestFlow("1.2.3.4", "5.6.7.8", 33333)
 	f.Run()
 
@@ -239,7 +239,7 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	dsub := &testSubmitter{
 		Data: make([]string, 0),
 	}
-	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false)
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false, false)
 	feedWaitChan := make(chan bool)
 	outChan := make(chan types.Entry)
 
@@ -256,13 +256,82 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	f.Run()
 
 	createdFlows := make(map[string]int)
-	for i := 0; i < 200000; i++ {
-		ev := makeUnicornFlowEvent()
-		if ev.BytesToClient > 0 {
+	for i := 0; i < 400000; i++ {
+		proto := "TCP"
+		if i%2 == 0 {
+			proto = "UDP"
+		}
+		ev := makeUnicornFlowEvent(proto)
+		if proto == "TCP" && ev.BytesToClient > 0 {
 			key := fmt.Sprintf("%s_%s_%d", ev.SrcIP, ev.DestIP, ev.DestPort)
 			createdFlows[key]++
 		}
 		d.Dispatch(&ev)
+	}
+
+	for {
+		if dsub.GetTotalAggs() < (len(createdFlows) / 2) {
+			log.Debug(dsub.GetTotalAggs())
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			break
+		}
+	}
+
+	consumeWaitChan := make(chan bool)
+	f.Stop(consumeWaitChan)
+	close(outChan)
+	<-feedWaitChan
+	<-consumeWaitChan
+
+	if len(dsub.Data) == 0 {
+		t.Fatalf("collected aggregations are empty")
+	}
+
+	log.Info(dsub.GetTotalAggs(), len(createdFlows), len(dsub.Data))
+
+	var totallen int
+	for _, v := range dsub.Data {
+		totallen += len(v)
+	}
+	if totallen == 0 {
+		t.Fatalf("length of collected aggregations is zero")
+	}
+
+	if dsub.GetTotalAggs() != len(createdFlows) {
+		t.Fatalf("unexpected number of flow aggregates: %d/%d", dsub.GetTotalAggs(),
+			len(createdFlows))
+	}
+
+	for k, v := range dsub.GetFlowTuples() {
+		if _, ok := createdFlows[k]; !ok {
+			t.Fatalf("missing flow aggregate: %s", k)
+		}
+		if v["count"] != int64(createdFlows[k]) {
+			t.Fatalf("unexpected number of flows for %s: %d/%d",
+				k, v["count"], createdFlows[k])
+		}
+	}
+}
+
+func TestUnicornMixedUDPTCP(t *testing.T) {
+	rand.Seed(time.Now().UTC().UnixNano())
+	dsub := &testSubmitter{
+		Data: make([]string, 0),
+	}
+	f := MakeUnicornAggregator(dsub, 500*time.Millisecond, false, true)
+	f.Run()
+
+	createdFlows := make(map[string]int)
+	for i := 0; i < 200000; i++ {
+		proto := "TCP"
+		if i%2 == 0 {
+			proto = "UDP"
+		}
+		ev := makeUnicornFlowEvent(proto)
+		key := fmt.Sprintf("%s_%s_%d", ev.SrcIP, ev.DestIP, ev.DestPort)
+		createdFlows[key]++
+		f.Consume(&ev)
 	}
 
 	for {
@@ -276,8 +345,6 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 
 	consumeWaitChan := make(chan bool)
 	f.Stop(consumeWaitChan)
-	close(outChan)
-	<-feedWaitChan
 	<-consumeWaitChan
 
 	if len(dsub.Data) == 0 {

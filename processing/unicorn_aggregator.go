@@ -45,6 +45,7 @@ type UnicornAggregator struct {
 	TestFlowSrcIP        string
 	TestFlowDestIP       string
 	TestFlowDestPort     int64
+	AllFlows             bool
 }
 
 // MakeUnicornAggregate creates a new empty UnicornAggregate object.
@@ -58,7 +59,7 @@ func MakeUnicornAggregate() *UnicornAggregate {
 
 // MakeUnicornAggregator creates a new empty UnicornAggregator object.
 func MakeUnicornAggregator(statsSubmitter util.StatsSubmitter,
-	submitPeriod time.Duration, dummyMode bool) *UnicornAggregator {
+	submitPeriod time.Duration, dummyMode bool, allFlows bool) *UnicornAggregator {
 	a := &UnicornAggregator{
 		Logger: log.WithFields(log.Fields{
 			"domain": "aggregate",
@@ -70,6 +71,7 @@ func MakeUnicornAggregator(statsSubmitter util.StatsSubmitter,
 		ClosedChan:       make(chan bool),
 		Aggregate:        *MakeUnicornAggregate(),
 		TestFlowDestPort: 99999,
+		AllFlows:         allFlows,
 	}
 	return a
 }
@@ -197,7 +199,7 @@ func (a *UnicornAggregator) Stop(stopChan chan bool) {
 // aggregated state
 func (a *UnicornAggregator) Consume(e *types.Entry) error {
 	// Unicorn flow aggregation update
-	if e.EventType == "flow" && e.Proto == "TCP" && e.BytesToClient > 0 {
+	if e.EventType == "flow" && (a.AllFlows || (e.Proto == "TCP" && e.BytesToClient > 0)) {
 		a.StringBuf.Write([]byte(e.SrcIP))
 		a.StringBuf.Write([]byte("_"))
 		a.StringBuf.Write([]byte(e.DestIP))

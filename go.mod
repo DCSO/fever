@@ -8,7 +8,7 @@ require (
 	github.com/NeowayLabs/wabbit v0.0.0-20201021105516-ded4a9ef19d2
 	github.com/Showmax/go-fqdn v1.0.0 // indirect
 	github.com/buger/jsonparser v1.1.1
-	github.com/containerd/containerd v1.6.26 // indirect
+	github.com/containerd/containerd v1.6.38 // indirect
 	github.com/fsouza/go-dockerclient v1.7.1 // indirect
 	github.com/garyburd/redigo v1.6.2
 	github.com/gomodule/redigo v1.8.3 // indirect
@@ -24,7 +24,7 @@ require (
 	github.com/tiago4orion/conjure v0.0.0-20150908101743-93cb30b9d218 // indirect
 	github.com/yl2chen/cidranger v1.0.2
 	golang.org/x/sync v0.3.0
-	google.golang.org/grpc v1.58.3
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/pg.v5 v5.3.3

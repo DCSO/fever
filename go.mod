@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/DCSO/bloom v0.2.3
 	github.com/DCSO/fluxline v0.0.0-20200907065040-78686e5e68f6
-	github.com/NeowayLabs/wabbit v0.0.0-20201021105516-ded4a9ef19d2
+	github.com/NeowayLabs/wabbit v0.0.0-20210927194032-73ad61d1620e
 	github.com/Showmax/go-fqdn v1.0.0 // indirect
 	github.com/buger/jsonparser v1.1.1
 	github.com/containerd/containerd v1.6.38 // indirect
@@ -19,7 +19,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
-	github.com/streadway/amqp v1.0.0 // indirect
 	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203
 	github.com/tiago4orion/conjure v0.0.0-20150908101743-93cb30b9d218 // indirect
 	github.com/yl2chen/cidranger v1.0.2

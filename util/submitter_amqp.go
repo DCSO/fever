@@ -12,8 +12,8 @@ import (
 	"github.com/NeowayLabs/wabbit"
 	"github.com/NeowayLabs/wabbit/amqp"
 	"github.com/NeowayLabs/wabbit/utils"
+	origamqp "github.com/rabbitmq/amqp091-go"
 	log "github.com/sirupsen/logrus"
-	origamqp "github.com/streadway/amqp"
 )
 
 // AMQPBaseSubmitter is the base engine that sends reports to a RabbitMQ host and

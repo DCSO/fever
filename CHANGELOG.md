@@ -2,6 +2,13 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.3.7] - 2025-04-16
+
+### Changed
+- Move from deprecated AMQP library `github.com/streadway/amqp` to `github.com/rabbitmq/amqp091-go`.
+- Move from deprecated Redis library `github.com/garyburd/redigo` to `github.com/gomodule/redigo`.
+- Update dependencies.
+
 ## [1.3.6] - 2024-07-03
 
 ### Added

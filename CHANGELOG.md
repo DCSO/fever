@@ -2,6 +2,13 @@
 
 All notable changes to FEVER will be documented in this file.
 
+## [1.4.0] - 2025-09-23
+
+### Changed
+- Move from go-pg PostgreSQL library `github.com/go-pg/pg` to `github.com/jackc/pgx/v4`.
+- Add unit tests to PostgreSQL slurper.
+- Update dependencies.
+
 ## [1.3.7] - 2025-04-16
 
 ### Changed

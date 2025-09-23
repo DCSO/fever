@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -266,7 +267,7 @@ func MakeMongoSlurper(host string, database string, user string, password string
 }
 
 // Run starts a MongoSlurper.
-func (s *MongoSlurper) Run(eventchan chan types.Entry) {
+func (s *MongoSlurper) Run(_ctx context.Context, eventchan chan types.Entry) {
 	// set up workers for each event type
 	for k, v := range s.TypeDispatch {
 		go s.eventTypeWorker(v, k)

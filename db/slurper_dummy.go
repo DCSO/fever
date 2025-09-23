@@ -4,6 +4,8 @@ package db
 // Copyright (c) 2017, DCSO GmbH
 
 import (
+	"context"
+
 	"github.com/DCSO/fever/types"
 )
 
@@ -11,7 +13,7 @@ import (
 type DummySlurper struct{}
 
 // Run starts a DummySlurper.
-func (s *DummySlurper) Run(eventchan chan types.Entry) {
+func (s *DummySlurper) Run(_ctx context.Context, eventchan chan types.Entry) {
 	go func() {
 		for range eventchan {
 		}

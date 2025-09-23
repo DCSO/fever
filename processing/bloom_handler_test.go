@@ -407,7 +407,7 @@ func TestBloomHandler(t *testing.T) {
 
 	// check that we haven't missed anything
 	if len(fwhandler.Entries) < 4*numOfTestBloomItems {
-		t.Fatalf("expected %d forwarded BLF alerts, seen less (%d)", numOfTestBloomItems,
+		t.Fatalf("expected %d forwarded BLF alerts, seen less (%d)", 4*numOfTestBloomItems,
 			len(fwhandler.Entries))
 	}
 

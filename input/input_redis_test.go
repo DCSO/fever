@@ -239,7 +239,7 @@ func _TestRedisGone(t *testing.T, usePipelining bool, sock string) {
 }
 
 func TestRedisGoneWithPipelining(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test")
+	dir, err := os.MkdirTemp("", "test")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestRedisGoneWithPipelining(t *testing.T) {
 }
 
 func TestRedisGoneNoPipelining(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test")
+	dir, err := os.MkdirTemp("", "test")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -4,6 +4,7 @@ package db
 // Copyright (c) 2017, DCSO GmbH
 
 import (
+	"context"
 	"github.com/DCSO/fever/types"
 )
 
@@ -12,6 +13,6 @@ import (
 // Finish() can be used to finalize any state.
 // TODO implement proper start/stop (atm 'hard' stop by exit()ing)
 type Slurper interface {
-	Run(chan types.Entry)
+	Run(context.Context, chan types.Entry)
 	Finish()
 }

@@ -40,6 +40,9 @@ func mainfunc(cmd *cobra.Command, args []string) {
 
 	eventChan := make(chan types.Entry, defaultQueueSize)
 
+	// create a cancellable context for components that support it
+	ctx, cancel := context.WithCancel(context.Background())
+
 	util.ToolName = viper.GetString("toolname")
 
 	logfilename := viper.GetString("logging.file")
@@ -211,7 +214,7 @@ func mainfunc(cmd *cobra.Command, args []string) {
 		}
 		s = &db.DummySlurper{}
 	}
-	s.Run(eventChan)
+	s.Run(ctx, eventChan)
 
 	var forwardHandler processing.Handler
 	// start forwarding
@@ -524,6 +527,8 @@ func mainfunc(cmd *cobra.Command, args []string) {
 	go func() {
 		for sig := range c {
 			if sig == syscall.SIGTERM || sig == syscall.SIGINT {
+				// cancel context to stop background tasks
+				cancel()
 				pprof.StopCPUProfile()
 				if submitter != nil {
 					submitter.Finish()

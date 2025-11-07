@@ -18,7 +18,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.11.1
-	github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203
+	github.com/stvp/tempredis v0.0.0-20231107154819-8a695b693b9c
 	github.com/yl2chen/cidranger v1.0.2
 	golang.org/x/sync v0.16.0
 	google.golang.org/grpc v1.59.0

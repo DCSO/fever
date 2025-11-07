@@ -139,6 +139,9 @@ func TestForwardHandler(t *testing.T) {
 	mf := makeMultiForwarder(tmpfn, false, []string{"alert"})
 	mf.Run(c, 5)
 
+	// Give the forwarder time to establish the socket connection
+	time.Sleep(100 * time.Millisecond)
+
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {
 		t.Fatal("Forwarding handler should only claim one type")
@@ -216,6 +219,9 @@ func TestForwardHandlerWithAddedFields(t *testing.T) {
 		"foo": "bar",
 	})
 
+	// Give the forwarder time to establish the socket connection
+	time.Sleep(100 * time.Millisecond)
+
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {
 		t.Fatal("Forwarding handler should only claim one type")
@@ -287,6 +293,9 @@ func TestForwardAllHandler(t *testing.T) {
 	mf := makeMultiForwarder(tmpfn, true, []string{})
 	fh := MakeForwardHandler(c)
 	mf.Run(c, 5)
+
+	// Give the forwarder time to establish the socket connection
+	time.Sleep(100 * time.Millisecond)
 
 	fhTypes := fh.GetEventTypes()
 	if len(fhTypes) != 1 {

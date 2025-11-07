@@ -333,7 +333,7 @@ func TestBloomHandler(t *testing.T) {
 		// emit Bloom filter TP event with 20% individual probability, at most
 		// <numOfTestBloomItems> each
 		if 2 < rand.Intn(10) {
-			if i == numOfTestBloomItems && j == numOfTestBloomItems && k == numOfTestBloomItems {
+			if i == numOfTestBloomItems && j == numOfTestBloomItems && k == numOfTestBloomItems && l == numOfTestBloomItems {
 				break
 			}
 			// uniformly distribute hits over HTTP URL/Host and DNS lookups

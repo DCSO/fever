@@ -270,7 +270,7 @@ func TestUnicornAggregatorWithDispatch(t *testing.T) {
 	}
 
 	for {
-		if dsub.GetTotalAggs() < (len(createdFlows) / 2) {
+		if dsub.GetTotalAggs() < len(createdFlows) {
 			log.Debug(dsub.GetTotalAggs())
 			time.Sleep(100 * time.Millisecond)
 		} else {

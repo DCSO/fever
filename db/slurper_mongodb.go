@@ -261,7 +261,6 @@ func MakeMongoSlurper(host string, database string, user string, password string
 	for _, t := range TYPES {
 		s.TypeDispatch[t] = make(chan types.Entry, 1000)
 	}
-	url := fmt.Sprintf("mongodb://%s:%s@%s/%s", s.User, s.Password, s.Host, s.Database)
 	s.Logger.WithFields(log.Fields{
 		"host":     s.Host,
 		"database": s.Database,

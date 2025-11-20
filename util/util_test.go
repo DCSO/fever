@@ -74,7 +74,7 @@ var entries = []types.Entry{
 func TestJSONParseEVE(t *testing.T) {
 	f, err := os.Open("testdata/jsonparse_eve.json")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	scanner := bufio.NewScanner(f)
 	i := 0
@@ -82,7 +82,7 @@ func TestJSONParseEVE(t *testing.T) {
 		json := scanner.Bytes()
 		e, err := ParseJSON(json)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(entries[i], e) {
 			t.Fatalf("entry %d parsed from JSON does not match expected value", i)
@@ -94,7 +94,7 @@ func TestJSONParseEVE(t *testing.T) {
 func TestJSONParseEVEBroken(t *testing.T) {
 	f, err := os.Open("testdata/jsonparse_eve_broken1.json")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	scanner := bufio.NewScanner(f)
 	i := 0
@@ -103,7 +103,7 @@ func TestJSONParseEVEBroken(t *testing.T) {
 		e, err := ParseJSON(json)
 		if i != 1 {
 			if err != nil {
-				t.Fatalf(err.Error())
+				t.Fatal(err)
 			}
 		}
 		if i == 1 {
@@ -123,7 +123,7 @@ func TestJSONParseEVEBroken(t *testing.T) {
 func TestJSONParseEVEempty(t *testing.T) {
 	f, err := os.Open("testdata/jsonparse_eve_empty.json")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	scanner := bufio.NewScanner(f)
 	i := 0
@@ -138,7 +138,7 @@ func TestJSONParseEVEempty(t *testing.T) {
 func TestJSONParseEVEwithnull(t *testing.T) {
 	f, err := os.Open("testdata/jsonparse_eve_nulls.json")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	scanner := bufio.NewScanner(f)
 	i := 0
@@ -147,7 +147,7 @@ func TestJSONParseEVEwithnull(t *testing.T) {
 		json := scanner.Bytes()
 		e, err := ParseJSON(json)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 		entry = e
 		i++
@@ -163,7 +163,7 @@ func TestJSONParseEVEwithnull(t *testing.T) {
 func TestGetSensorID(t *testing.T) {
 	sid, err := GetSensorID()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	if len(sid) == 0 {
 		t.Fatal("missing sensor ID")

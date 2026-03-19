@@ -6,7 +6,7 @@ require (
 	github.com/DCSO/bloom v0.2.3
 	github.com/DCSO/fluxline v0.0.0-20200907065040-78686e5e68f6
 	github.com/NeowayLabs/wabbit v0.0.0-20210927194032-73ad61d1620e
-	github.com/buger/jsonparser v1.1.1
+	github.com/buger/jsonparser v1.1.2
 	github.com/gomodule/redigo v1.8.3
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/mitchellh/go-homedir v1.1.0
